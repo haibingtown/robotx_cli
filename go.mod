@@ -1,4 +1,4 @@
-module haibingtown/robotx_cli
+module github.com/haibingtown/robotx_cli
 
 go 1.24.4
 

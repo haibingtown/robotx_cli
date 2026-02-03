@@ -5,7 +5,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"haibingtown/robotx_cli/pkg/client"
+	"github.com/haibingtown/robotx_cli/pkg/client"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

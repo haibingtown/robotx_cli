@@ -56,8 +56,8 @@ AI agents should ensure the RobotX CLI is installed and configured:
 # Check if robotx CLI is available
 which robotx
 
-# If not installed, install it
-go install haibingtown/robotx_cli@latest
+# If not installed, install from the public repo
+go install github.com/haibingtown/robotx_cli@latest
 
 # Configure credentials
 export ROBOTX_BASE_URL=https://api.robotx.xin
@@ -318,7 +318,7 @@ Error: build timeout after 600 seconds
 ```bash
 if ! command -v robotx &> /dev/null; then
     echo "RobotX CLI not found. Installing..."
-    go install haibingtown/robotx_cli@latest
+    go install github.com/haibingtown/robotx_cli@latest
 fi
 ```
 

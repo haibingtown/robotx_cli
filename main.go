@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"haibingtown/robotx_cli/cmd"
+	"github.com/haibingtown/robotx_cli/cmd"
 )
 
 func main() {
