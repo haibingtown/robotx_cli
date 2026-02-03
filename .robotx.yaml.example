@@ -1,0 +1,15 @@
+# RobotX CLI Configuration
+# Place this file at ~/.robotx.yaml
+
+# RobotX Server base URL
+base_url: https://api.robotx.xin
+
+# API Key for authentication
+# You can also use environment variable: ROBOTX_API_KEY
+api_key: your-api-key-here
+
+# Default project visibility (public or private)
+# default_visibility: private
+
+# Default build timeout in seconds
+# default_timeout: 600
