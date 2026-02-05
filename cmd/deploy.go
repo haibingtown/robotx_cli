@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -35,6 +36,10 @@ var (
 	publish     bool
 	wait        bool
 	timeout     int
+	localBuild  bool
+	installCmd  string
+	buildCmd    string
+	outputDir   string
 )
 
 func init() {
@@ -46,6 +51,10 @@ func init() {
 	deployCmd.Flags().BoolVar(&publish, "publish", false, "Publish to production after successful build")
 	deployCmd.Flags().BoolVar(&wait, "wait", true, "Wait for build completion")
 	deployCmd.Flags().IntVar(&timeout, "timeout", 600, "Build timeout in seconds")
+	deployCmd.Flags().BoolVar(&localBuild, "local-build", false, "Build locally and upload artifacts instead of using RobotX cloud build")
+	deployCmd.Flags().StringVar(&installCmd, "install-command", "", "Override install command for local build")
+	deployCmd.Flags().StringVar(&buildCmd, "build-command", "", "Override build command for local build")
+	deployCmd.Flags().StringVar(&outputDir, "output-dir", "", "Override output directory for local build")
 }
 
 func runDeploy(cmd *cobra.Command, args []string) error {
@@ -113,22 +122,75 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 	// Step 3: Upload source
 	fmt.Printf("⬆️  Uploading source code...\n")
-	commitID, err := c.UploadSource(proj.ProjectID, zipPath)
+	commit, build, err := c.UploadSource(proj.ProjectID, zipPath)
 	if err != nil {
 		return fmt.Errorf("failed to upload source: %w", err)
 	}
-	fmt.Printf("✅ Source uploaded: %s\n", commitID)
-
-	// Step 4: Trigger build
-	fmt.Printf("🔨 Triggering build...\n")
-	build, err := c.TriggerBuild(proj.ProjectID, commitID)
-	if err != nil {
-		return fmt.Errorf("failed to trigger build: %w", err)
+	if commit != nil && commit.CommitID != "" {
+		fmt.Printf("✅ Source uploaded: %s\n", commit.CommitID)
 	}
-	fmt.Printf("✅ Build started: %s\n", build.BuildID)
+	if build != nil && build.BuildID != "" {
+		fmt.Printf("✅ Build created: %s\n", build.BuildID)
+	}
+
+	// Step 4: Trigger build (remote) or run locally
+	if localBuild {
+		if build == nil || build.BuildID == "" {
+			return fmt.Errorf("server did not return a build ID; local build upload is not supported by this server")
+		}
+		plan := (*client.BuildPlan)(nil)
+		if commit != nil && commit.ScannerResult != nil {
+			plan = commit.ScannerResult.BuildPlan
+		}
+		if err := runLocalBuild(absPath, plan); err != nil {
+			return err
+		}
+		artifactDir := outputDir
+		if artifactDir == "" && plan != nil && strings.TrimSpace(plan.OutputDir) != "" {
+			artifactDir = strings.TrimSpace(plan.OutputDir)
+		}
+		if artifactDir == "" {
+			artifactDir = "dist"
+		}
+		artifactPath := filepath.Join(absPath, artifactDir)
+		if stat, err := os.Stat(artifactPath); err != nil || !stat.IsDir() {
+			return fmt.Errorf("output directory missing: %s", artifactPath)
+		}
+		fmt.Printf("📦 Packaging build output from: %s\n", artifactPath)
+		artifactZip, err := packageDirectory(artifactPath)
+		if err != nil {
+			return fmt.Errorf("failed to package build output: %w", err)
+		}
+		defer os.Remove(artifactZip)
+		fmt.Printf("✅ Build output packaged: %s\n", artifactZip)
+
+		fmt.Printf("⬆️  Uploading build artifacts...\n")
+		build, err = c.UploadBuildArtifacts(build.BuildID, artifactZip)
+		if err != nil {
+			return fmt.Errorf("failed to upload build artifacts: %w", err)
+		}
+		fmt.Printf("✅ Build artifacts uploaded\n")
+	} else {
+		fmt.Printf("🔨 Triggering build...\n")
+		if build == nil || build.BuildID == "" {
+			if commit == nil || commit.CommitID == "" {
+				return fmt.Errorf("no commit ID available to trigger build")
+			}
+			build, err = c.TriggerBuild(proj.ProjectID, commit.CommitID)
+			if err != nil {
+				return fmt.Errorf("failed to trigger build: %w", err)
+			}
+			fmt.Printf("✅ Build started: %s\n", build.BuildID)
+		} else {
+			if err := c.StartBuild(proj.ProjectID, build.BuildID); err != nil {
+				return fmt.Errorf("failed to start build: %w", err)
+			}
+			fmt.Printf("✅ Build started: %s\n", build.BuildID)
+		}
+	}
 
 	// Step 5: Wait for build completion
-	if wait {
+	if wait && !localBuild {
 		fmt.Printf("⏳ Waiting for build to complete (timeout: %ds)...\n", timeout)
 		build, err = waitForBuild(c, proj.ProjectID, build.BuildID, timeout)
 		if err != nil {
@@ -139,7 +201,10 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			fmt.Printf("✅ Build completed successfully!\n")
 
 			// Get preview URL
-			previewURL := fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
+			previewURL := build.PreviewPath
+			if previewURL == "" {
+				previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
+			}
 			fmt.Printf("🌐 Preview URL: %s\n", previewURL)
 		} else {
 			fmt.Printf("❌ Build failed with status: %s\n", build.Status)
@@ -151,18 +216,29 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("build failed")
 		}
+	} else if localBuild && build != nil && build.Status == "success" {
+		fmt.Printf("✅ Local build completed successfully!\n")
+		previewURL := build.PreviewPath
+		if previewURL == "" {
+			previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
+		}
+		fmt.Printf("🌐 Preview URL: %s\n", previewURL)
 	}
 
 	// Step 6: Publish to production
-	if publish && build.Status == "success" {
+	if publish && build != nil && build.Status == "success" {
 		fmt.Printf("🚀 Publishing to production...\n")
-		if err := c.PublishBuild(proj.ProjectID, build.BuildID); err != nil {
+		publicPath, err := c.PublishBuild(proj.ProjectID, build.BuildID)
+		if err != nil {
 			return fmt.Errorf("failed to publish: %w", err)
 		}
 		fmt.Printf("✅ Published successfully!\n")
 
 		// Get production URL
-		prodURL := fmt.Sprintf("%s/%s", baseURL, proj.ProjectID)
+		prodURL := publicPath
+		if prodURL == "" {
+			prodURL = fmt.Sprintf("%s/%s", baseURL, proj.ProjectID)
+		}
 		fmt.Printf("🌐 Production URL: %s\n", prodURL)
 	}
 
@@ -228,6 +304,48 @@ func packageSource(projectPath string) (string, error) {
 	return tmpFile.Name(), nil
 }
 
+func packageDirectory(root string) (string, error) {
+	tmpFile, err := os.CreateTemp("", "robotx-artifacts-*.zip")
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+	zipWriter := zip.NewWriter(tmpFile)
+	defer zipWriter.Close()
+
+	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		relPath, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		zipFile, err := zipWriter.Create(relPath)
+		if err != nil {
+			return err
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(zipFile, file)
+		return err
+	})
+
+	if err != nil {
+		os.Remove(tmpFile.Name())
+		return "", err
+	}
+
+	return tmpFile.Name(), nil
+}
+
 func shouldSkip(path string) bool {
 	skipDirs := []string{
 		"node_modules",
@@ -248,6 +366,57 @@ func shouldSkip(path string) bool {
 	}
 
 	return false
+}
+
+func runLocalBuild(projectPath string, plan *client.BuildPlan) error {
+	install := strings.TrimSpace(installCmd)
+	build := strings.TrimSpace(buildCmd)
+
+	if install == "" && plan != nil && strings.TrimSpace(plan.InstallCommand) != "" {
+		install = strings.TrimSpace(plan.InstallCommand)
+	}
+	if build == "" && plan != nil && strings.TrimSpace(plan.BuildCommand) != "" {
+		build = strings.TrimSpace(plan.BuildCommand)
+	}
+
+	if install == "" && fileExists(filepath.Join(projectPath, "package.json")) {
+		install = "npm install"
+	}
+	if build == "" && fileExists(filepath.Join(projectPath, "package.json")) {
+		build = "npm run build"
+	}
+
+	if plan != nil && !plan.NeedsBuild && installCmd == "" && buildCmd == "" {
+		install = ""
+		build = ""
+	}
+
+	if install != "" {
+		fmt.Printf("🛠️  Running %s\n", install)
+		if err := runShell(projectPath, install); err != nil {
+			return fmt.Errorf("install failed: %w", err)
+		}
+	}
+	if build != "" {
+		fmt.Printf("🛠️  Running %s\n", build)
+		if err := runShell(projectPath, build); err != nil {
+			return fmt.Errorf("build failed: %w", err)
+		}
+	}
+	return nil
+}
+
+func runShell(dir, command string) error {
+	cmd := exec.Command("sh", "-lc", command)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func waitForBuild(c *client.Client, projectID, buildID string, timeoutSec int) (*client.Build, error) {

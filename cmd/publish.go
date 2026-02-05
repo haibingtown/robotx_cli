@@ -44,12 +44,16 @@ func runPublish(cmd *cobra.Command, args []string) error {
 	c := client.NewClient(baseURL, apiKey)
 
 	fmt.Printf("🚀 Publishing build %s to production...\n", publishBuildID)
-	if err := c.PublishBuild(publishProjectID, publishBuildID); err != nil {
+	publicPath, err := c.PublishBuild(publishProjectID, publishBuildID)
+	if err != nil {
 		return fmt.Errorf("failed to publish: %w", err)
 	}
 
 	fmt.Printf("✅ Published successfully!\n")
-	prodURL := fmt.Sprintf("%s/%s", baseURL, publishProjectID)
+	prodURL := publicPath
+	if prodURL == "" {
+		prodURL = fmt.Sprintf("%s/%s", baseURL, publishProjectID)
+	}
 	fmt.Printf("🌐 Production URL: %s\n", prodURL)
 
 	return nil

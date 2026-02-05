@@ -76,7 +76,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(w, "Status:\t%s\n", build.Status)
 		fmt.Fprintf(w, "Commit:\t%s\n", build.CommitID)
 		fmt.Fprintf(w, "Created:\t%s\n", build.CreatedAt.Format("2006-01-02 15:04:05"))
-		fmt.Fprintf(w, "Updated:\t%s\n", build.UpdatedAt.Format("2006-01-02 15:04:05"))
+		if build.FinishedAt != nil {
+			fmt.Fprintf(w, "Finished:\t%s\n", build.FinishedAt.Format("2006-01-02 15:04:05"))
+		}
 		w.Flush()
 
 		// Show logs if requested

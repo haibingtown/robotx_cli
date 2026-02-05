@@ -28,6 +28,10 @@ func init() {
 	updateCmd.Flags().StringVarP(&updateProjectID, "project-id", "p", "", "Project ID (required)")
 	updateCmd.Flags().BoolVar(&updatePublish, "publish", false, "Publish to production after successful build")
 	updateCmd.Flags().BoolVar(&updateWait, "wait", true, "Wait for build completion")
+	updateCmd.Flags().BoolVar(&localBuild, "local-build", false, "Build locally and upload artifacts instead of using RobotX cloud build")
+	updateCmd.Flags().StringVar(&installCmd, "install-command", "", "Override install command for local build")
+	updateCmd.Flags().StringVar(&buildCmd, "build-command", "", "Override build command for local build")
+	updateCmd.Flags().StringVar(&outputDir, "output-dir", "", "Override output directory for local build")
 	updateCmd.MarkFlagRequired("project-id")
 }
 
