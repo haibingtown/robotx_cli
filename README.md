@@ -1,6 +1,6 @@
 # RobotX CLI
 
-RobotX CLI 用于将应用部署到 RobotX 平台，支持 `deploy` / `update` / `status` / `logs` / `publish`。
+RobotX CLI 用于将应用部署到 RobotX 平台，支持 `deploy` / `versions` / `status` / `logs` / `publish`。
 
 ## 当前状态
 
@@ -90,7 +90,7 @@ export ROBOTX_API_KEY=your-api-key
   "success": false,
   "error": {
     "code": "api_error",
-    "message": "failed to create project"
+    "message": "failed to resolve project"
   }
 }
 ```
@@ -99,13 +99,15 @@ export ROBOTX_API_KEY=your-api-key
 
 ### deploy
 
-部署新项目或已有项目。
+部署新项目或已有项目（`--name` 默认 create-or-update，同 owner 同名复用）。
 
 ```bash
 robotx deploy [project-path] \
-  [--name my-app | --project-id proj_123] \
+  [--name my-app] \
   [--publish] [--wait=true] [--timeout 600]
 ```
+
+项目名规则（与服务端一致）：至少 4 个字符，仅允许字母/数字/`_`/`-`，且首尾必须是字母或数字。
 
 本地构建模式：
 
@@ -116,13 +118,15 @@ robotx deploy . --name my-app --local-build \
   [--output-dir dist]
 ```
 
-### update
+### versions
 
-更新已有项目（本质复用 deploy 流程）：
+查看项目最近构建版本（用于多版本管理和回滚前选择）：
 
 ```bash
-robotx update [project-path] --project-id proj_123 [--publish]
+robotx versions --project-id proj_123 [--limit 20]
 ```
+
+`versions` 也支持别名：`robotx builds --project-id proj_123`。
 
 ### status
 

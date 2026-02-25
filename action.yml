@@ -22,11 +22,7 @@ inputs:
     required: false
     default: "."
   project-name:
-    description: "Project name for new project"
-    required: false
-    default: ""
-  project-id:
-    description: "Existing project ID"
+    description: "Project name (deploy will create-or-update for same owner)"
     required: false
     default: ""
   publish:
@@ -140,7 +136,6 @@ runs:
         INPUT_API_KEY_ALT: ${{ inputs.api_key }}
         INPUT_PROJECT_PATH: ${{ inputs.project-path }}
         INPUT_PROJECT_NAME: ${{ inputs.project-name }}
-        INPUT_PROJECT_ID: ${{ inputs.project-id }}
         INPUT_PUBLISH: ${{ inputs.publish }}
         INPUT_WAIT: ${{ inputs.wait }}
         INPUT_TIMEOUT: ${{ inputs.timeout }}
@@ -178,9 +173,7 @@ runs:
 
         cmd=("${ROBOTX_BIN}" deploy "${INPUT_PROJECT_PATH}" --output json --base-url "${EFFECTIVE_BASE_URL}" --api-key "${EFFECTIVE_API_KEY}" --wait="${INPUT_WAIT}" --timeout "${INPUT_TIMEOUT}")
 
-        if [[ -n "${INPUT_PROJECT_ID}" ]]; then
-          cmd+=(--project-id "${INPUT_PROJECT_ID}")
-        elif [[ -n "${INPUT_PROJECT_NAME}" ]]; then
+        if [[ -n "${INPUT_PROJECT_NAME}" ]]; then
           cmd+=(--name "${INPUT_PROJECT_NAME}")
         fi
 

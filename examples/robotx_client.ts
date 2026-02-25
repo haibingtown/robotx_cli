@@ -41,10 +41,8 @@ export interface RobotXConfig {
  * Deploy options
  */
 export interface DeployOptions {
-  /** Project name (required for new projects) */
+  /** Project name (required, deploy by name create-or-update) */
   name?: string;
-  /** Existing project ID (for updates) */
-  projectId?: string;
   /** Publish to production after build */
   publish?: boolean;
   /** Wait for build to complete */
@@ -83,16 +81,6 @@ export interface StatusResult {
     status: string;
     created_at: string;
   };
-}
-
-/**
- * Update options
- */
-export interface UpdateOptions {
-  /** New project name */
-  name?: string;
-  /** New visibility setting */
-  visibility?: 'public' | 'private';
 }
 
 /**
@@ -206,8 +194,8 @@ export class RobotXClient {
     options: DeployOptions = {}
   ): Promise<DeployResult> {
     // Validate inputs
-    if (!options.projectId && !options.name) {
-      throw new Error("Either 'name' or 'projectId' must be provided");
+    if (!options.name) {
+      throw new Error("'name' must be provided for deploy");
     }
 
     const resolvedPath = resolve(projectPath);
@@ -217,12 +205,7 @@ export class RobotXClient {
 
     const args = ['deploy', resolvedPath];
 
-    if (options.name) {
-      args.push('--name', options.name);
-    }
-    if (options.projectId) {
-      args.push('--project-id', options.projectId);
-    }
+    args.push('--name', options.name);
     if (options.publish) {
       args.push('--publish');
     }
@@ -292,42 +275,43 @@ export class RobotXClient {
   /**
    * Publish a build to production
    *
+   * @param projectId - Project ID
    * @param buildId - Build ID to publish
    * @returns Publish result
    *
    * @example
    * ```typescript
-   * const result = await client.publish('build_123');
+   * const result = await client.publish('proj_123', 'build_123');
    * console.log(`Published to: ${result.url}`);
    * ```
    */
-  async publish(buildId: string): Promise<any> {
-    return this.runCommand(['publish', buildId]);
+  async publish(projectId: string, buildId: string): Promise<any> {
+    return this.runCommand([
+      'publish',
+      '--project-id', projectId,
+      '--build-id', buildId,
+    ]);
   }
 
   /**
-   * Update project configuration
+   * List recent build versions for a project
    *
-   * @param projectId - Project ID to update
-   * @param options - Update options
-   * @returns Update result
+   * @param projectId - Project ID
+   * @param limit - Max number of versions
+   * @returns Version list
    *
    * @example
    * ```typescript
-   * await client.update('proj_123', { name: 'new-name' });
+   * const result = await client.versions('proj_123', 20);
+   * console.log(result.builds);
    * ```
    */
-  async update(projectId: string, options: UpdateOptions): Promise<any> {
-    const args = ['update', projectId];
-
-    if (options.name) {
-      args.push('--name', options.name);
-    }
-    if (options.visibility) {
-      args.push('--visibility', options.visibility);
-    }
-
-    return this.runCommand(args);
+  async versions(projectId: string, limit: number = 20): Promise<any> {
+    return this.runCommand([
+      'versions',
+      '--project-id', projectId,
+      '--limit', String(limit),
+    ]);
   }
 
   /**

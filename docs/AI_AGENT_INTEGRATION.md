@@ -26,6 +26,7 @@ export ROBOTX_API_KEY=your-api-key
 
 ```bash
 robotx deploy . --name my-app --output json
+robotx versions --project-id proj_123 --output json
 robotx status --project-id proj_123 --output json
 robotx logs --build-id build_456 --output json
 robotx publish --project-id proj_123 --build-id build_456 --output json
@@ -112,6 +113,7 @@ Action 输出：
 
 - `status`：`--project-id` 与 `--build-id` 至少提供一个
 - `status --logs`：必须带 `--build-id`
+- `versions`：必须带 `--project-id`
 - `logs`：使用 `--build-id` 或位置参数传入 build id
 
 ## MCP 说明

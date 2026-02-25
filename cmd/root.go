@@ -23,7 +23,7 @@ var rootCmd = &cobra.Command{
 	Use:   "robotx",
 	Short: "RobotX CLI - Deploy AI applications to RobotX platform",
 	Long: `RobotX CLI is a command-line tool for deploying AI applications to the RobotX platform.
-It provides a simple interface for AI agents to create, build, and deploy projects.`,
+It provides a simple interface for AI agents to deploy and manage project versions.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

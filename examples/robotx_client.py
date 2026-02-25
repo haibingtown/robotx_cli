@@ -130,7 +130,6 @@ class RobotXClient:
         self,
         project_path: str,
         name: Optional[str] = None,
-        project_id: Optional[str] = None,
         publish: bool = False,
         wait: bool = True,
         timeout: int = 600,
@@ -141,8 +140,7 @@ class RobotXClient:
 
         Args:
             project_path: Path to the project directory
-            name: Project name (required for new projects)
-            project_id: Existing project ID (for updates)
+            name: Project name (required, deploy by name create-or-update)
             publish: Publish to production after build
             wait: Wait for build to complete
             timeout: Build timeout in seconds
@@ -162,8 +160,8 @@ class RobotXClient:
             https://my-app.api.robotx.xin
         """
         # Validate inputs
-        if not project_id and not name:
-            raise ValueError("Either 'name' or 'project_id' must be provided")
+        if not name:
+            raise ValueError("'name' must be provided for deploy")
 
         project_path = str(Path(project_path).resolve())
         if not os.path.exists(project_path):
@@ -171,10 +169,7 @@ class RobotXClient:
 
         args = ['deploy', project_path]
 
-        if name:
-            args.extend(['--name', name])
-        if project_id:
-            args.extend(['--project-id', project_id])
+        args.extend(['--name', name])
         if publish:
             args.append('--publish')
         if not wait:
@@ -241,11 +236,12 @@ class RobotXClient:
         result = self._run_command(['logs', build_id])
         return result.get('logs', '')
 
-    def publish(self, build_id: str) -> Dict[str, Any]:
+    def publish(self, project_id: str, build_id: str) -> Dict[str, Any]:
         """
         Publish a build to production
 
         Args:
+            project_id: Project ID
             build_id: Build ID to publish
 
         Returns:
@@ -255,42 +251,25 @@ class RobotXClient:
             RobotXAPIError: If API call fails
 
         Example:
-            >>> result = client.publish('build_123')
+            >>> result = client.publish('proj_123', 'build_123')
             >>> print(result['url'])
             https://my-app.api.robotx.xin
         """
-        return self._run_command(['publish', build_id])
+        return self._run_command([
+            'publish',
+            '--project-id', project_id,
+            '--build-id', build_id,
+        ])
 
-    def update(
-        self,
-        project_id: str,
-        name: Optional[str] = None,
-        visibility: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def versions(self, project_id: str, limit: int = 20) -> Dict[str, Any]:
         """
-        Update project configuration
-
-        Args:
-            project_id: Project ID to update
-            name: New project name
-            visibility: New visibility setting
-
-        Returns:
-            Update result
-
-        Raises:
-            RobotXAPIError: If API call fails
-
-        Example:
-            >>> result = client.update('proj_123', name='new-name')
+        List recent build versions for a project
         """
-        args = ['update', project_id]
-
-        if name:
-            args.extend(['--name', name])
-        if visibility:
-            args.extend(['--visibility', visibility])
-
+        if not project_id:
+            raise ValueError("'project_id' must be provided")
+        args = ['versions', '--project-id', project_id]
+        if limit != 20:
+            args.extend(['--limit', str(limit)])
         return self._run_command(args)
 
     def wait_for_build(

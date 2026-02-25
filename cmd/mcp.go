@@ -22,7 +22,7 @@ func runMCP(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(os.Stderr, "MCP server mode is not yet implemented.")
 	fmt.Fprintln(os.Stderr, "For now, use the CLI commands directly:")
 	fmt.Fprintln(os.Stderr, "  robotx deploy --help")
-	fmt.Fprintln(os.Stderr, "  robotx update --help")
+	fmt.Fprintln(os.Stderr, "  robotx versions --help")
 	fmt.Fprintln(os.Stderr, "  robotx status --help")
 	fmt.Fprintln(os.Stderr, "  robotx publish --help")
 
@@ -30,7 +30,7 @@ func runMCP(cmd *cobra.Command, args []string) error {
 }
 
 // Future MCP implementation would handle:
-// - tools/list: List available tools (deploy, update, status, publish)
+// - tools/list: List available tools (deploy, versions, status, publish)
 // - tools/call: Execute tool with parameters
 // - resources/list: List available resources (projects, builds)
 // - resources/read: Read resource details

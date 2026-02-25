@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,7 +21,7 @@ var deployCmd = &cobra.Command{
 	Use:   "deploy [project-path]",
 	Short: "Deploy a project to RobotX",
 	Long: `Deploy a project to RobotX platform. This command will:
-1. Create a project (if not exists)
+1. Resolve project by name (create-or-update)
 2. Package and upload source code
 3. Trigger a build
 4. Wait for build completion
@@ -31,7 +32,6 @@ var deployCmd = &cobra.Command{
 
 var (
 	projectName string
-	projectID   string
 	visibility  string
 	publish     bool
 	wait        bool
@@ -41,6 +41,8 @@ var (
 	buildCmd    string
 	outputDir   string
 )
+
+var projectNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,}[A-Za-z0-9]$`)
 
 type deployResponse struct {
 	ProjectID     string `json:"project_id"`
@@ -58,8 +60,7 @@ type deployResponse struct {
 func init() {
 	rootCmd.AddCommand(deployCmd)
 
-	deployCmd.Flags().StringVarP(&projectName, "name", "n", "", "Project name (required for new projects)")
-	deployCmd.Flags().StringVarP(&projectID, "project-id", "p", "", "Existing project ID (skip creation)")
+	deployCmd.Flags().StringVarP(&projectName, "name", "n", "", "Project name (create-or-update for current owner)")
 	deployCmd.Flags().StringVarP(&visibility, "visibility", "v", "private", "Project visibility (public/private)")
 	deployCmd.Flags().BoolVar(&publish, "publish", false, "Publish to production after successful build")
 	deployCmd.Flags().BoolVar(&wait, "wait", true, "Wait for build completion")
@@ -100,31 +101,22 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	var previewURL string
 	var productionURL string
 
-	var proj *client.Project
-	if projectID != "" {
-		logf("📦 Using existing project: %s\n", projectID)
-		proj, err = c.GetProject(projectID)
-		if err != nil {
-			return newCLIError("api_error", "failed to get project", 2, err)
-		}
-		if usedProjectName == "" {
-			usedProjectName = proj.Name
-		}
-	} else {
-		if usedProjectName == "" {
-			usedProjectName = filepath.Base(absPath)
-		}
-		logf("📦 Creating project: %s\n", usedProjectName)
-		proj, err = c.CreateProject(client.CreateProjectRequest{
-			Name:       usedProjectName,
-			Visibility: visibility,
-		})
-		if err != nil {
-			return newCLIError("api_error", "failed to create project", 2, err)
-		}
-		usedProjectName = proj.Name
-		logf("✅ Project created: %s\n", proj.ProjectID)
+	if usedProjectName == "" {
+		usedProjectName = filepath.Base(absPath)
 	}
+	if err := validateProjectName(usedProjectName); err != nil {
+		return newCLIError("invalid_project_name", err.Error(), 1, nil)
+	}
+	logf("📦 Resolving project by name (create-or-update): %s\n", usedProjectName)
+	proj, err := c.CreateProject(client.CreateProjectRequest{
+		Name:       usedProjectName,
+		Visibility: visibility,
+	})
+	if err != nil {
+		return newCLIError("api_error", "failed to resolve project", 2, err)
+	}
+	usedProjectName = proj.Name
+	logf("✅ Project ready: %s\n", proj.ProjectID)
 
 	logf("📦 Packaging source code from: %s\n", absPath)
 	zipPath, err := packageSource(absPath)
@@ -300,6 +292,17 @@ func safeBuildStatus(build *client.Build) string {
 		return ""
 	}
 	return build.Status
+}
+
+func validateProjectName(name string) error {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return fmt.Errorf("project name is required")
+	}
+	if !projectNamePattern.MatchString(trimmed) {
+		return fmt.Errorf("project name must be at least 4 chars and contain only letters, numbers, hyphens, or underscores (first/last must be alphanumeric)")
+	}
+	return nil
 }
 
 func packageSource(projectPath string) (string, error) {

@@ -52,7 +52,7 @@ async function deployToRobotX(projectPath: string, projectName: string) {
   const result = await executeBash(command);
 
   // Parse output
-  const projectIdMatch = result.stdout.match(/Project created: (proj_\w+)/);
+  const projectIdMatch = result.stdout.match(/Project (?:created|ready): ([-\w]+)/);
   const previewUrlMatch = result.stdout.match(/Preview URL: (https:\/\/[^\s]+)/);
 
   return {
@@ -70,8 +70,8 @@ console.log(`Deployed to: ${deployment.previewUrl}`);
 ### Example 2: Iterative Development
 
 ```typescript
-async function updateProject(projectId: string, projectPath: string) {
-  const command = `robotx update ${projectPath} --project-id ${projectId}`;
+async function redeployProject(projectName: string, projectPath: string) {
+  const command = `robotx deploy ${projectPath} --name "${projectName}"`;
 
   const result = await executeBash(command);
 
@@ -85,14 +85,14 @@ async function updateProject(projectId: string, projectPath: string) {
 }
 
 // Usage in iterative development
-let projectId = 'proj_abc123';
+let projectName = 'my-app';
 
 // Make changes
 await modifyCode('./my-app/src/index.ts');
 
-// Deploy update
-const update = await updateProject(projectId, './my-app');
-console.log(`Build ID: ${update.buildId}`);
+// Redeploy by project name (create-or-update)
+const deployment = await redeployProject(projectName, './my-app');
+console.log(`Build ID: ${deployment.buildId}`);
 ```
 
 ### Example 3: Status Monitoring
@@ -144,7 +144,7 @@ def deploy_to_robotx(project_path: str, project_name: str) -> dict:
         raise Exception(f"Deployment failed: {result.stderr}")
 
     # Parse output
-    project_id = re.search(r'Project created: (proj_\w+)', result.stdout)
+    project_id = re.search(r'Project (?:created|ready): ([-\w]+)', result.stdout)
     preview_url = re.search(r'Preview URL: (https://[^\s]+)', result.stdout)
 
     return {
@@ -158,19 +158,19 @@ deployment = deploy_to_robotx('./my-app', 'My AI App')
 print(f"Deployed to: {deployment['preview_url']}")
 ```
 
-### Example 2: Update and Publish
+### Example 2: Deploy and Publish
 
 ```python
-def update_and_publish(project_id: str, project_path: str) -> dict:
-    """Update project and publish to production"""
+def deploy_and_publish(project_name: str, project_path: str) -> dict:
+    """Deploy project by name and publish to production"""
 
-    # Update
-    update_cmd = ['robotx', 'update', project_path,
-                  '--project-id', project_id, '--publish']
-    result = subprocess.run(update_cmd, capture_output=True, text=True)
+    # Deploy (create-or-update by name)
+    deploy_cmd = ['robotx', 'deploy', project_path,
+                  '--name', project_name, '--publish']
+    result = subprocess.run(deploy_cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
-        raise Exception(f"Update failed: {result.stderr}")
+        raise Exception(f"Deploy failed: {result.stderr}")
 
     # Parse output
     build_id = re.search(r'Build started: (build_\w+)', result.stdout)
@@ -183,7 +183,7 @@ def update_and_publish(project_id: str, project_path: str) -> dict:
     }
 
 # Usage
-result = update_and_publish('proj_abc123', './my-app')
+result = deploy_and_publish('my-app', './my-app')
 print(f"Published to: {result['production_url']}")
 ```
 
@@ -236,7 +236,7 @@ deploy_project() {
     exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
-        project_id=$(echo "$output" | grep -oP 'Project created: \K\w+')
+        project_id=$(echo "$output" | grep -oP 'Project (?:created|ready): \K[-\w]+')
         preview_url=$(echo "$output" | grep -oP 'Preview URL: \K\S+')
 
         echo "Success!"
@@ -251,14 +251,14 @@ deploy_project() {
     fi
 }
 
-# Function to update project
-update_project() {
-    local project_id=$1
+# Function to redeploy project by name
+redeploy_project() {
+    local project_name=$1
     local project_path=$2
 
-    echo "Updating project $project_id..."
+    echo "Redeploying project $project_name..."
 
-    output=$(robotx update "$project_path" --project-id "$project_id" 2>&1)
+    output=$(robotx deploy "$project_path" --name "$project_name" 2>&1)
     exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
@@ -266,14 +266,14 @@ update_project() {
         echo "Success! Build ID: $build_id"
         return 0
     else
-        echo "Update failed:"
+        echo "Redeploy failed:"
         echo "$output"
         return 1
     fi
 }
 
 # Usage
-deploy_project "./my-app" "My App"
+redeploy_project "My App" "./my-app"
 ```
 
 ### Node.js Integration
@@ -290,7 +290,7 @@ async function deployToRobotX(projectPath, projectName) {
     );
 
     // Parse output
-    const projectIdMatch = stdout.match(/Project created: (proj_\w+)/);
+    const projectIdMatch = stdout.match(/Project (?:created|ready): ([-\w]+)/);
     const previewUrlMatch = stdout.match(/Preview URL: (https:\/\/[^\s]+)/);
 
     return {
@@ -348,7 +348,7 @@ promote_to_production() {
 # Full workflow
 project_name="My App"
 deployment=$(deploy_preview "$project_name")
-project_id=$(echo "$deployment" | grep -oP 'Project created: \K\w+')
+project_id=$(echo "$deployment" | grep -oP 'Project (?:created|ready): \K[-\w]+')
 build_id=$(echo "$deployment" | grep -oP 'Build started: \K\w+')
 preview_url=$(echo "$deployment" | grep -oP 'Preview URL: \K\S+')
 
@@ -379,7 +379,7 @@ def get_directory_hash(path: str) -> str:
                 hasher.update(f.read())
     return hasher.hexdigest()
 
-def watch_and_deploy(project_path: str, project_id: str, interval: int = 30):
+def watch_and_deploy(project_path: str, project_name: str, interval: int = 30):
     """Watch directory and auto-deploy on changes"""
 
     last_hash = get_directory_hash(project_path)
@@ -392,8 +392,8 @@ def watch_and_deploy(project_path: str, project_id: str, interval: int = 30):
         if current_hash != last_hash:
             print("Changes detected, deploying...")
 
-            cmd = ['robotx', 'update', project_path,
-                   '--project-id', project_id]
+            cmd = ['robotx', 'deploy', project_path,
+                   '--name', project_name]
             result = subprocess.run(cmd, capture_output=True, text=True)
 
             if result.returncode == 0:
@@ -404,23 +404,23 @@ def watch_and_deploy(project_path: str, project_id: str, interval: int = 30):
             last_hash = current_hash
 
 # Usage
-watch_and_deploy('./my-app', 'proj_abc123', interval=30)
+watch_and_deploy('./my-app', 'my-app', interval=30)
 ```
 
 ### Pattern 3: Rollback on Failure
 
 ```python
-def deploy_with_rollback(project_id: str, project_path: str,
+def deploy_with_rollback(project_id: str, project_name: str, project_path: str,
                          previous_build_id: str) -> dict:
     """Deploy with automatic rollback on failure"""
 
-    # Deploy update
-    update_cmd = ['robotx', 'update', project_path,
-                  '--project-id', project_id]
-    result = subprocess.run(update_cmd, capture_output=True, text=True)
+    # Deploy by name (create-or-update)
+    deploy_cmd = ['robotx', 'deploy', project_path,
+                  '--name', project_name]
+    result = subprocess.run(deploy_cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
-        raise Exception(f"Update failed: {result.stderr}")
+        raise Exception(f"Deploy failed: {result.stderr}")
 
     # Get new build ID
     build_id = re.search(r'Build started: (build_\w+)', result.stdout)
@@ -456,7 +456,7 @@ def deploy_with_rollback(project_id: str, project_path: str,
         }
 
 # Usage
-result = deploy_with_rollback('proj_abc123', './my-app', 'build_old456')
+result = deploy_with_rollback('proj_abc123', 'my-app', './my-app', 'build_old456')
 if result['success']:
     print(f"Deployed successfully: {result['build_id']}")
 else:
@@ -494,8 +494,8 @@ Use regex to extract structured data:
 ```python
 import re
 
-output = "Project created: proj_abc123"
-project_id = re.search(r'proj_\w+', output).group(0)
+output = "Project ready: 02f7e0bb-33bb-4b67-bd83-0ae8015ea737"
+project_id = re.search(r'[-\w]+$', output).group(0)
 ```
 
 ### 4. Timeout Handling

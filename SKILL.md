@@ -1,13 +1,13 @@
 ---
 name: robotx
-description: Use the robotx CLI to deploy, update, and check status for RobotX applications.
+description: Use the robotx CLI to deploy, manage versions, and check status for RobotX applications.
 metadata:
   short-description: RobotX deployment CLI skill
 ---
 
 # RobotX Deployment Skill
 
-Use this skill when an agent needs to deploy or update a project on RobotX using the `robotx` CLI.
+Use this skill when an agent needs to deploy or manage project versions on RobotX using the `robotx` CLI.
 
 ## Quick start
 
@@ -30,7 +30,7 @@ Set credentials by config file (`~/.robotx.yaml`) or env vars:
 For agents and workflows, always use structured output:
 
 - `robotx deploy . --name my-app --output json`
-- `robotx update . --project-id proj_123 --output json`
+- `robotx versions --project-id proj_123 --output json`
 - `robotx status --project-id proj_123 --output json`
 - `robotx logs --build-id build_456 --output json`
 - `robotx publish --project-id proj_123 --build-id build_456 --output json`
@@ -39,17 +39,21 @@ JSON is written to stdout. Progress logs are written to stderr.
 
 ## Common commands
 
-### Deploy new project
+### Deploy (create-or-update)
 
 ```bash
 robotx deploy [path] --name "My App" [--publish] [--wait=true]
 ```
 
-### Update existing project
+By default, `deploy --name` is create-or-update for the same owner.
+
+### Versions
 
 ```bash
-robotx update [path] --project-id proj_123 [--publish]
+robotx versions --project-id proj_123 [--limit 20]
 ```
+
+`versions` alias: `robotx builds --project-id proj_123`.
 
 ### Status
 

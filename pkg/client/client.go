@@ -308,6 +308,29 @@ func (c *Client) GetBuild(projectID, buildID string) (*Build, error) {
 	return &build, nil
 }
 
+// ListBuildsForProject lists recent builds for a project.
+func (c *Client) ListBuildsForProject(projectID string, limit int) ([]*Build, error) {
+	path := fmt.Sprintf("/api/projects/%s/builds", projectID)
+	if limit > 0 {
+		path = fmt.Sprintf("%s?limit=%d", path, limit)
+	}
+	resp, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+
+	var builds []*Build
+	if err := json.NewDecoder(resp.Body).Decode(&builds); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return builds, nil
+}
+
 // PublishBuild publishes a build to production
 func (c *Client) PublishBuild(projectID, buildID string) (string, error) {
 	body, err := json.Marshal(map[string]string{
