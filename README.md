@@ -104,18 +104,29 @@ export ROBOTX_API_KEY=your-api-key
 ```bash
 robotx deploy [project-path] \
   [--name my-app] \
-  [--publish] [--wait=true] [--timeout 600]
+  [--publish=true] [--local-build=true] [--wait=true] [--timeout 600]
 ```
 
 项目名规则（与服务端一致）：至少 4 个字符，仅允许字母/数字/`_`/`-`，且首尾必须是字母或数字。
 
-本地构建模式：
+默认行为：
+
+- `--local-build=true`：本地构建并上传产物
+- `--publish=true`：构建成功后自动发布
+
+本地构建模式（默认开启）：
 
 ```bash
 robotx deploy . --name my-app --local-build \
   [--install-command "npm ci"] \
   [--build-command "npm run build"] \
   [--output-dir dist]
+```
+
+如需改回云端构建且不自动发布：
+
+```bash
+robotx deploy . --name my-app --local-build=false --publish=false
 ```
 
 ### versions
@@ -171,7 +182,7 @@ robotx mcp
 
 1. 下载 release 二进制
 2. 校验 checksum
-3. 执行 `robotx deploy --output json`
+3. 执行 `robotx deploy --local-build=true --publish=true --output json`
 4. 输出 `project_id/build_id/status/url` 等字段
 
 示例工作流见：`.github/workflows/action-example.yml`。

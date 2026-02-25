@@ -42,6 +42,8 @@ api_key: your-api-key
 robotx deploy . --name my-app --output json
 ```
 
+默认会使用 `--local-build=true` 并在成功后 `--publish=true`；如只想预览可追加 `--publish=false`。
+
 ## 4) 查询状态与日志
 
 ```bash
@@ -59,7 +61,8 @@ robotx publish --project-id proj_123 --build-id build_456 --output json
 ## 6) 常见参数
 
 - `--output json` / `--json`: 机器可读输出
-- `--publish`: 构建成功后自动发布
+- `--publish`: 构建成功后自动发布（默认 `true`，可用 `--publish=false` 关闭）
+- `--local-build`: 本地构建并上传产物（默认 `true`，可用 `--local-build=false` 改为云端构建）
 - `--wait=false`: 不等待构建结束
 - `--timeout 900`: 自定义等待超时
 

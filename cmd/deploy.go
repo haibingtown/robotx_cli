@@ -25,7 +25,7 @@ var deployCmd = &cobra.Command{
 2. Package and upload source code
 3. Trigger a build
 4. Wait for build completion
-5. Optionally publish to production`,
+5. Publish to production by default (use --publish=false to disable)`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runDeploy,
 }
@@ -62,10 +62,10 @@ func init() {
 
 	deployCmd.Flags().StringVarP(&projectName, "name", "n", "", "Project name (create-or-update for current owner)")
 	deployCmd.Flags().StringVarP(&visibility, "visibility", "v", "private", "Project visibility (public/private)")
-	deployCmd.Flags().BoolVar(&publish, "publish", false, "Publish to production after successful build")
+	deployCmd.Flags().BoolVar(&publish, "publish", true, "Publish to production after successful build")
 	deployCmd.Flags().BoolVar(&wait, "wait", true, "Wait for build completion")
 	deployCmd.Flags().IntVar(&timeout, "timeout", 600, "Build timeout in seconds")
-	deployCmd.Flags().BoolVar(&localBuild, "local-build", false, "Build locally and upload artifacts instead of using RobotX cloud build")
+	deployCmd.Flags().BoolVar(&localBuild, "local-build", true, "Build locally and upload artifacts instead of using RobotX cloud build")
 	deployCmd.Flags().StringVar(&installCmd, "install-command", "", "Override install command for local build")
 	deployCmd.Flags().StringVar(&buildCmd, "build-command", "", "Override build command for local build")
 	deployCmd.Flags().StringVar(&outputDir, "output-dir", "", "Override output directory for local build")
@@ -198,7 +198,10 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if wait && !localBuild {
+	if wait {
+		if build == nil || build.BuildID == "" {
+			return newCLIError("build_failed", "no build ID available to wait for completion", 3, nil)
+		}
 		logf("⏳ Waiting for build to complete (timeout: %ds)...\n", timeout)
 		build, err = waitForBuild(c, proj.ProjectID, build.BuildID, timeout)
 		if err != nil {
@@ -206,7 +209,11 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		}
 
 		if build.Status == "success" {
-			logf("✅ Build completed successfully!\n")
+			if localBuild {
+				logf("✅ Local build completed successfully!\n")
+			} else {
+				logf("✅ Build completed successfully!\n")
+			}
 			previewURL = build.PreviewPath
 			if previewURL == "" {
 				previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
@@ -221,8 +228,12 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			}
 			return newCLIError("build_failed", fmt.Sprintf("build failed with status: %s", build.Status), 3, nil)
 		}
-	} else if localBuild && build != nil && build.Status == "success" {
-		logf("✅ Local build completed successfully!\n")
+	} else if build != nil && build.Status == "success" {
+		if localBuild {
+			logf("✅ Local build completed successfully!\n")
+		} else {
+			logf("✅ Build completed successfully!\n")
+		}
 		previewURL = build.PreviewPath
 		if previewURL == "" {
 			previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)

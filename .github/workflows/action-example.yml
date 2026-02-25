@@ -26,7 +26,6 @@ jobs:
           api-key: ${{ secrets.ROBOTX_API_KEY }}
           project-path: ${{ github.event.inputs.project_path }}
           project-name: ${{ github.event.inputs.project_name }}
-          publish: "false"
 
       - name: Print result
         shell: bash
