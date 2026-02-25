@@ -19,9 +19,6 @@ func init() {
 }
 
 func runMCP(cmd *cobra.Command, args []string) error {
-	// MCP server implementation
-	// This is a placeholder for future MCP protocol support
-
 	fmt.Fprintln(os.Stderr, "MCP server mode is not yet implemented.")
 	fmt.Fprintln(os.Stderr, "For now, use the CLI commands directly:")
 	fmt.Fprintln(os.Stderr, "  robotx deploy --help")
@@ -29,7 +26,7 @@ func runMCP(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(os.Stderr, "  robotx status --help")
 	fmt.Fprintln(os.Stderr, "  robotx publish --help")
 
-	return fmt.Errorf("MCP mode not yet implemented")
+	return newCLIError("not_implemented", "MCP mode not yet implemented", 1, nil)
 }
 
 // Future MCP implementation would handle:

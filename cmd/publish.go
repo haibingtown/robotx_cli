@@ -21,6 +21,12 @@ var (
 	publishBuildID   string
 )
 
+type publishResponse struct {
+	ProjectID     string `json:"project_id"`
+	BuildID       string `json:"build_id"`
+	ProductionURL string `json:"production_url,omitempty"`
+}
+
 func init() {
 	rootCmd.AddCommand(publishCmd)
 
@@ -35,26 +41,34 @@ func runPublish(cmd *cobra.Command, args []string) error {
 	apiKey := viper.GetString("api_key")
 
 	if baseURL == "" {
-		return fmt.Errorf("base URL is required")
+		return newCLIError("missing_base_url", "base URL is required", 1, nil)
 	}
 	if apiKey == "" {
-		return fmt.Errorf("API key is required")
+		return newCLIError("missing_api_key", "API key is required", 1, nil)
 	}
 
 	c := client.NewClient(baseURL, apiKey)
 
-	fmt.Printf("🚀 Publishing build %s to production...\n", publishBuildID)
+	logf("🚀 Publishing build %s to production...\n", publishBuildID)
 	publicPath, err := c.PublishBuild(publishProjectID, publishBuildID)
 	if err != nil {
-		return fmt.Errorf("failed to publish: %w", err)
+		return newCLIError("publish_failed", "failed to publish", 4, err)
 	}
 
-	fmt.Printf("✅ Published successfully!\n")
+	logf("✅ Published successfully!\n")
 	prodURL := publicPath
 	if prodURL == "" {
 		prodURL = fmt.Sprintf("%s/%s", baseURL, publishProjectID)
 	}
-	fmt.Printf("🌐 Production URL: %s\n", prodURL)
+	logf("🌐 Production URL: %s\n", prodURL)
+
+	if err := emitSuccess(cmd.Name(), publishResponse{
+		ProjectID:     publishProjectID,
+		BuildID:       publishBuildID,
+		ProductionURL: prodURL,
+	}); err != nil {
+		return newCLIError("output_error", "failed to render JSON output", 1, err)
+	}
 
 	return nil
 }

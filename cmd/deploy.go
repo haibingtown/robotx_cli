@@ -42,6 +42,19 @@ var (
 	outputDir   string
 )
 
+type deployResponse struct {
+	ProjectID     string `json:"project_id"`
+	ProjectName   string `json:"project_name,omitempty"`
+	CommitID      string `json:"commit_id,omitempty"`
+	BuildID       string `json:"build_id,omitempty"`
+	BuildStatus   string `json:"build_status,omitempty"`
+	PreviewURL    string `json:"preview_url,omitempty"`
+	ProductionURL string `json:"production_url,omitempty"`
+	Published     bool   `json:"published"`
+	Waited        bool   `json:"waited"`
+	LocalBuild    bool   `json:"local_build"`
+}
+
 func init() {
 	rootCmd.AddCommand(deployCmd)
 
@@ -58,92 +71,91 @@ func init() {
 }
 
 func runDeploy(cmd *cobra.Command, args []string) error {
-	// Get project path
 	projectPath := "."
 	if len(args) > 0 {
 		projectPath = args[0]
 	}
 
-	// Validate project path
 	absPath, err := filepath.Abs(projectPath)
 	if err != nil {
-		return fmt.Errorf("invalid project path: %w", err)
+		return newCLIError("invalid_project_path", "invalid project path", 1, err)
 	}
 
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		return fmt.Errorf("project path does not exist: %s", absPath)
+		return newCLIError("invalid_project_path", fmt.Sprintf("project path does not exist: %s", absPath), 1, nil)
 	}
 
-	// Get configuration
 	baseURL := viper.GetString("base_url")
 	apiKey := viper.GetString("api_key")
 
 	if baseURL == "" {
-		return fmt.Errorf("base URL is required (use --base-url or set ROBOTX_BASE_URL)")
+		return newCLIError("missing_base_url", "base URL is required (use --base-url or set ROBOTX_BASE_URL)", 1, nil)
 	}
 	if apiKey == "" {
-		return fmt.Errorf("API key is required (use --api-key or set ROBOTX_API_KEY)")
+		return newCLIError("missing_api_key", "API key is required (use --api-key or set ROBOTX_API_KEY)", 1, nil)
 	}
 
-	// Create client
 	c := client.NewClient(baseURL, apiKey)
+	usedProjectName := strings.TrimSpace(projectName)
+	var previewURL string
+	var productionURL string
 
-	// Step 1: Get or create project
 	var proj *client.Project
 	if projectID != "" {
-		fmt.Printf("📦 Using existing project: %s\n", projectID)
+		logf("📦 Using existing project: %s\n", projectID)
 		proj, err = c.GetProject(projectID)
 		if err != nil {
-			return fmt.Errorf("failed to get project: %w", err)
+			return newCLIError("api_error", "failed to get project", 2, err)
+		}
+		if usedProjectName == "" {
+			usedProjectName = proj.Name
 		}
 	} else {
-		if projectName == "" {
-			projectName = filepath.Base(absPath)
+		if usedProjectName == "" {
+			usedProjectName = filepath.Base(absPath)
 		}
-		fmt.Printf("📦 Creating project: %s\n", projectName)
+		logf("📦 Creating project: %s\n", usedProjectName)
 		proj, err = c.CreateProject(client.CreateProjectRequest{
-			Name:       projectName,
+			Name:       usedProjectName,
 			Visibility: visibility,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create project: %w", err)
+			return newCLIError("api_error", "failed to create project", 2, err)
 		}
-		fmt.Printf("✅ Project created: %s\n", proj.ProjectID)
+		usedProjectName = proj.Name
+		logf("✅ Project created: %s\n", proj.ProjectID)
 	}
 
-	// Step 2: Package source code
-	fmt.Printf("📦 Packaging source code from: %s\n", absPath)
+	logf("📦 Packaging source code from: %s\n", absPath)
 	zipPath, err := packageSource(absPath)
 	if err != nil {
-		return fmt.Errorf("failed to package source: %w", err)
+		return newCLIError("package_failed", "failed to package source", 1, err)
 	}
 	defer os.Remove(zipPath)
-	fmt.Printf("✅ Source packaged: %s\n", zipPath)
+	logf("✅ Source packaged: %s\n", zipPath)
 
-	// Step 3: Upload source
-	fmt.Printf("⬆️  Uploading source code...\n")
+	logf("⬆️  Uploading source code...\n")
 	commit, build, err := c.UploadSource(proj.ProjectID, zipPath)
 	if err != nil {
-		return fmt.Errorf("failed to upload source: %w", err)
+		return newCLIError("api_error", "failed to upload source", 2, err)
 	}
 	if commit != nil && commit.CommitID != "" {
-		fmt.Printf("✅ Source uploaded: %s\n", commit.CommitID)
+		logf("✅ Source uploaded: %s\n", commit.CommitID)
 	}
 	if build != nil && build.BuildID != "" {
-		fmt.Printf("✅ Build created: %s\n", build.BuildID)
+		logf("✅ Build created: %s\n", build.BuildID)
 	}
 
-	// Step 4: Trigger build (remote) or run locally
 	if localBuild {
 		if build == nil || build.BuildID == "" {
-			return fmt.Errorf("server did not return a build ID; local build upload is not supported by this server")
+			return newCLIError("local_build_unsupported", "server did not return a build ID; local build upload is not supported by this server", 2, nil)
 		}
 		plan := (*client.BuildPlan)(nil)
 		if commit != nil && commit.ScannerResult != nil {
 			plan = commit.ScannerResult.BuildPlan
 		}
 		if err := runLocalBuild(absPath, plan); err != nil {
-			return err
+			return newCLIError("build_failed", "local build failed", 3, err)
 		}
 		artifactDir := outputDir
 		if artifactDir == "" && plan != nil && strings.TrimSpace(plan.OutputDir) != "" {
@@ -154,95 +166,135 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		}
 		artifactPath := filepath.Join(absPath, artifactDir)
 		if stat, err := os.Stat(artifactPath); err != nil || !stat.IsDir() {
-			return fmt.Errorf("output directory missing: %s", artifactPath)
+			return newCLIError("build_failed", fmt.Sprintf("output directory missing: %s", artifactPath), 3, nil)
 		}
-		fmt.Printf("📦 Packaging build output from: %s\n", artifactPath)
+		logf("📦 Packaging build output from: %s\n", artifactPath)
 		artifactZip, err := packageDirectory(artifactPath)
 		if err != nil {
-			return fmt.Errorf("failed to package build output: %w", err)
+			return newCLIError("build_failed", "failed to package build output", 3, err)
 		}
 		defer os.Remove(artifactZip)
-		fmt.Printf("✅ Build output packaged: %s\n", artifactZip)
+		logf("✅ Build output packaged: %s\n", artifactZip)
 
-		fmt.Printf("⬆️  Uploading build artifacts...\n")
+		logf("⬆️  Uploading build artifacts...\n")
 		build, err = c.UploadBuildArtifacts(build.BuildID, artifactZip)
 		if err != nil {
-			return fmt.Errorf("failed to upload build artifacts: %w", err)
+			return newCLIError("api_error", "failed to upload build artifacts", 2, err)
 		}
-		fmt.Printf("✅ Build artifacts uploaded\n")
+		logf("✅ Build artifacts uploaded\n")
 	} else {
-		fmt.Printf("🔨 Triggering build...\n")
+		logf("🔨 Triggering build...\n")
 		if build == nil || build.BuildID == "" {
 			if commit == nil || commit.CommitID == "" {
-				return fmt.Errorf("no commit ID available to trigger build")
+				return newCLIError("build_failed", "no commit ID available to trigger build", 3, nil)
 			}
 			build, err = c.TriggerBuild(proj.ProjectID, commit.CommitID)
 			if err != nil {
-				return fmt.Errorf("failed to trigger build: %w", err)
+				return newCLIError("api_error", "failed to trigger build", 2, err)
 			}
-			fmt.Printf("✅ Build started: %s\n", build.BuildID)
+			logf("✅ Build started: %s\n", build.BuildID)
 		} else {
 			if err := c.StartBuild(proj.ProjectID, build.BuildID); err != nil {
-				return fmt.Errorf("failed to start build: %w", err)
+				return newCLIError("api_error", "failed to start build", 2, err)
 			}
-			fmt.Printf("✅ Build started: %s\n", build.BuildID)
+			logf("✅ Build started: %s\n", build.BuildID)
 		}
 	}
 
-	// Step 5: Wait for build completion
 	if wait && !localBuild {
-		fmt.Printf("⏳ Waiting for build to complete (timeout: %ds)...\n", timeout)
+		logf("⏳ Waiting for build to complete (timeout: %ds)...\n", timeout)
 		build, err = waitForBuild(c, proj.ProjectID, build.BuildID, timeout)
 		if err != nil {
-			return fmt.Errorf("build failed: %w", err)
+			return newCLIError("build_failed", "build failed", 3, err)
 		}
 
 		if build.Status == "success" {
-			fmt.Printf("✅ Build completed successfully!\n")
-
-			// Get preview URL
-			previewURL := build.PreviewPath
+			logf("✅ Build completed successfully!\n")
+			previewURL = build.PreviewPath
 			if previewURL == "" {
 				previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
 			}
-			fmt.Printf("🌐 Preview URL: %s\n", previewURL)
+			logf("🌐 Preview URL: %s\n", previewURL)
 		} else {
-			fmt.Printf("❌ Build failed with status: %s\n", build.Status)
+			logf("❌ Build failed with status: %s\n", build.Status)
 
-			// Try to get logs
 			logs, err := c.GetBuildLogs(proj.ProjectID, build.BuildID)
 			if err == nil && logs != "" {
-				fmt.Printf("\n📋 Build logs:\n%s\n", logs)
+				logf("\n📋 Build logs:\n%s\n", logs)
 			}
-			return fmt.Errorf("build failed")
+			return newCLIError("build_failed", fmt.Sprintf("build failed with status: %s", build.Status), 3, nil)
 		}
 	} else if localBuild && build != nil && build.Status == "success" {
-		fmt.Printf("✅ Local build completed successfully!\n")
-		previewURL := build.PreviewPath
+		logf("✅ Local build completed successfully!\n")
+		previewURL = build.PreviewPath
 		if previewURL == "" {
 			previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
 		}
-		fmt.Printf("🌐 Preview URL: %s\n", previewURL)
+		logf("🌐 Preview URL: %s\n", previewURL)
 	}
 
-	// Step 6: Publish to production
 	if publish && build != nil && build.Status == "success" {
-		fmt.Printf("🚀 Publishing to production...\n")
+		logf("🚀 Publishing to production...\n")
 		publicPath, err := c.PublishBuild(proj.ProjectID, build.BuildID)
 		if err != nil {
-			return fmt.Errorf("failed to publish: %w", err)
+			return newCLIError("publish_failed", "failed to publish", 4, err)
 		}
-		fmt.Printf("✅ Published successfully!\n")
+		logf("✅ Published successfully!\n")
 
-		// Get production URL
-		prodURL := publicPath
-		if prodURL == "" {
-			prodURL = fmt.Sprintf("%s/%s", baseURL, proj.ProjectID)
+		productionURL = publicPath
+		if productionURL == "" {
+			productionURL = fmt.Sprintf("%s/%s", baseURL, proj.ProjectID)
 		}
-		fmt.Printf("🌐 Production URL: %s\n", prodURL)
+		logf("🌐 Production URL: %s\n", productionURL)
+	}
+
+	if previewURL == "" && build != nil && build.Status == "success" {
+		previewURL = build.PreviewPath
+		if previewURL == "" {
+			previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
+		}
+	}
+	if productionURL == "" && publish && build != nil && build.Status == "success" {
+		productionURL = fmt.Sprintf("%s/%s", baseURL, proj.ProjectID)
+	}
+
+	if err := emitSuccess(cmd.Name(), deployResponse{
+		ProjectID:     proj.ProjectID,
+		ProjectName:   usedProjectName,
+		CommitID:      safeCommitID(commit),
+		BuildID:       safeBuildID(build),
+		BuildStatus:   safeBuildStatus(build),
+		PreviewURL:    previewURL,
+		ProductionURL: productionURL,
+		Published:     publish && productionURL != "",
+		Waited:        wait,
+		LocalBuild:    localBuild,
+	}); err != nil {
+		return newCLIError("output_error", "failed to render JSON output", 1, err)
 	}
 
 	return nil
+}
+
+func safeCommitID(commit *client.SourceCommit) string {
+	if commit == nil {
+		return ""
+	}
+	return commit.CommitID
+}
+
+func safeBuildID(build *client.Build) string {
+	if build == nil {
+		return ""
+	}
+	return build.BuildID
+}
+
+func safeBuildStatus(build *client.Build) string {
+	if build == nil {
+		return ""
+	}
+	return build.Status
 }
 
 func packageSource(projectPath string) (string, error) {
@@ -392,13 +444,13 @@ func runLocalBuild(projectPath string, plan *client.BuildPlan) error {
 	}
 
 	if install != "" {
-		fmt.Printf("🛠️  Running %s\n", install)
+		logf("🛠️  Running %s\n", install)
 		if err := runShell(projectPath, install); err != nil {
 			return fmt.Errorf("install failed: %w", err)
 		}
 	}
 	if build != "" {
-		fmt.Printf("🛠️  Running %s\n", build)
+		logf("🛠️  Running %s\n", build)
 		if err := runShell(projectPath, build); err != nil {
 			return fmt.Errorf("build failed: %w", err)
 		}
@@ -409,7 +461,11 @@ func runLocalBuild(projectPath string, plan *client.BuildPlan) error {
 func runShell(dir, command string) error {
 	cmd := exec.Command("sh", "-lc", command)
 	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
+	if isJSONOutput() {
+		cmd.Stdout = os.Stderr
+	} else {
+		cmd.Stdout = os.Stdout
+	}
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
@@ -437,7 +493,7 @@ func waitForBuild(c *client.Client, projectID, buildID string, timeoutSec int) (
 		case "success", "failed":
 			return build, nil
 		case "queued", "running":
-			fmt.Printf("⏳ Build status: %s (elapsed: %ds)\n", build.Status, int(time.Since(start).Seconds()))
+			logf("⏳ Build status: %s (elapsed: %ds)\n", build.Status, int(time.Since(start).Seconds()))
 			time.Sleep(5 * time.Second)
 		default:
 			return nil, fmt.Errorf("unknown build status: %s", build.Status)

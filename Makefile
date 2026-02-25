@@ -1,4 +1,4 @@
-.PHONY: build install clean test
+.PHONY: build install install-user install-binary clean test deps tidy build-all help
 
 # Build the CLI binary
 build:
@@ -19,6 +19,11 @@ install-user: build
 	mv robotx ~/bin/robotx
 	@echo "✅ Installed to ~/bin/robotx"
 	@echo "⚠️  Make sure ~/bin is in your PATH"
+
+# Install prebuilt binary from GitHub release (no Go toolchain required)
+install-binary:
+	@echo "Installing RobotX CLI from release binaries..."
+	./scripts/install.sh
 
 # Clean build artifacts
 clean:
@@ -62,6 +67,7 @@ help:
 	@echo "  build        - Build the CLI binary"
 	@echo "  install      - Install the CLI to /usr/local/bin (requires sudo)"
 	@echo "  install-user - Install the CLI to ~/bin (no sudo required)"
+	@echo "  install-binary - Install prebuilt binary from GitHub releases"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  test         - Run tests"
 	@echo "  deps         - Download dependencies"

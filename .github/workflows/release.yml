@@ -1,0 +1,81 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build archives
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${TAG#v}"
+          mkdir -p dist
+
+          targets=(
+            "darwin amd64"
+            "darwin arm64"
+            "linux amd64"
+            "linux arm64"
+            "windows amd64"
+            "windows arm64"
+          )
+
+          for target in "${targets[@]}"; do
+            read -r GOOS GOARCH <<<"${target}"
+            EXT=""
+            BIN_NAME="robotx"
+            if [[ "${GOOS}" == "windows" ]]; then
+              EXT=".exe"
+              BIN_NAME="robotx.exe"
+            fi
+
+            OUT_BIN="dist/${BIN_NAME}"
+            CGO_ENABLED=0 GOOS="${GOOS}" GOARCH="${GOARCH}" \
+              go build -trimpath -ldflags "-s -w -X github.com/haibingtown/robotx_cli/cmd.version=${VERSION}" \
+              -o "${OUT_BIN}" ./main.go
+
+            ARCHIVE_BASE="robotx_${VERSION}_${GOOS}_${GOARCH}"
+            if [[ "${GOOS}" == "windows" ]]; then
+              (cd dist && zip -q "${ARCHIVE_BASE}.zip" "${BIN_NAME}")
+            else
+              tar -C dist -czf "dist/${ARCHIVE_BASE}.tar.gz" "${BIN_NAME}"
+            fi
+            rm -f "${OUT_BIN}"
+          done
+
+          (
+            cd dist
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum * > checksums.txt
+            else
+              shasum -a 256 * > checksums.txt
+            fi
+          )
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt
+          generate_release_notes: true

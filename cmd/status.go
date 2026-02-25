@@ -24,79 +24,132 @@ var (
 	showLogs        bool
 )
 
+type statusResponse struct {
+	Project *client.Project `json:"project,omitempty"`
+	Build   *client.Build   `json:"build,omitempty"`
+	Logs    string          `json:"logs,omitempty"`
+	URLs    *statusURLs     `json:"urls,omitempty"`
+}
+
+type statusURLs struct {
+	PreviewURL    string `json:"preview_url,omitempty"`
+	ProductionURL string `json:"production_url,omitempty"`
+}
+
 func init() {
 	rootCmd.AddCommand(statusCmd)
 
-	statusCmd.Flags().StringVarP(&statusProjectID, "project-id", "p", "", "Project ID (required)")
+	statusCmd.Flags().StringVarP(&statusProjectID, "project-id", "p", "", "Project ID")
 	statusCmd.Flags().StringVarP(&statusBuildID, "build-id", "b", "", "Build ID (optional)")
 	statusCmd.Flags().BoolVarP(&showLogs, "logs", "l", false, "Show build logs")
-	statusCmd.MarkFlagRequired("project-id")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
+	if statusProjectID == "" && statusBuildID == "" {
+		return newCLIError("missing_argument", "at least one of --project-id or --build-id is required", 1, nil)
+	}
+	if showLogs && statusBuildID == "" {
+		return newCLIError("missing_argument", "--logs requires --build-id", 1, nil)
+	}
+
 	baseURL := viper.GetString("base_url")
 	apiKey := viper.GetString("api_key")
 
 	if baseURL == "" {
-		return fmt.Errorf("base URL is required")
+		return newCLIError("missing_base_url", "base URL is required", 1, nil)
 	}
 	if apiKey == "" {
-		return fmt.Errorf("API key is required")
+		return newCLIError("missing_api_key", "API key is required", 1, nil)
 	}
 
 	c := client.NewClient(baseURL, apiKey)
+	resp := statusResponse{}
 
-	// Get project info
-	fmt.Printf("📦 Fetching project information...\n")
-	project, err := c.GetProject(statusProjectID)
-	if err != nil {
-		return fmt.Errorf("failed to get project: %w", err)
+	if statusProjectID != "" {
+		logf("📦 Fetching project information...\n")
+		project, err := c.GetProject(statusProjectID)
+		if err != nil {
+			return newCLIError("api_error", "failed to get project", 2, err)
+		}
+		resp.Project = project
 	}
 
-	// Display project info
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "\n📋 Project Information:\n")
-	fmt.Fprintf(w, "ID:\t%s\n", project.ProjectID)
-	fmt.Fprintf(w, "Name:\t%s\n", project.Name)
-	fmt.Fprintf(w, "Visibility:\t%s\n", project.Visibility)
-	fmt.Fprintf(w, "Created:\t%s\n", project.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(w, "Updated:\t%s\n", project.UpdatedAt.Format("2006-01-02 15:04:05"))
-	w.Flush()
-
-	// Get build info if specified
 	if statusBuildID != "" {
-		fmt.Printf("\n🔨 Fetching build information...\n")
+		logf("\n🔨 Fetching build information...\n")
 		build, err := c.GetBuild(statusProjectID, statusBuildID)
 		if err != nil {
-			return fmt.Errorf("failed to get build: %w", err)
+			return newCLIError("api_error", "failed to get build", 2, err)
 		}
+		resp.Build = build
 
-		fmt.Fprintf(w, "\n📋 Build Information:\n")
-		fmt.Fprintf(w, "ID:\t%s\n", build.BuildID)
-		fmt.Fprintf(w, "Status:\t%s\n", build.Status)
-		fmt.Fprintf(w, "Commit:\t%s\n", build.CommitID)
-		fmt.Fprintf(w, "Created:\t%s\n", build.CreatedAt.Format("2006-01-02 15:04:05"))
-		if build.FinishedAt != nil {
-			fmt.Fprintf(w, "Finished:\t%s\n", build.FinishedAt.Format("2006-01-02 15:04:05"))
-		}
-		w.Flush()
-
-		// Show logs if requested
 		if showLogs {
-			fmt.Printf("\n📋 Build Logs:\n")
 			logs, err := c.GetBuildLogs(statusProjectID, statusBuildID)
 			if err != nil {
-				fmt.Printf("⚠️  Failed to get logs: %v\n", err)
+				return newCLIError("api_error", "failed to get logs", 2, err)
 			} else {
-				fmt.Println(logs)
+				resp.Logs = logs
+			}
+		}
+
+		if resp.Project == nil && build.ProjectID != "" {
+			project, err := c.GetProject(build.ProjectID)
+			if err == nil {
+				resp.Project = project
 			}
 		}
 	}
 
-	// Show URLs
-	fmt.Printf("\n🌐 URLs:\n")
-	fmt.Printf("Preview: %s/preview/%s\n", baseURL, project.ProjectID)
-	fmt.Printf("Production: %s/%s\n", baseURL, project.ProjectID)
+	urlProjectID := statusProjectID
+	if urlProjectID == "" {
+		if resp.Project != nil {
+			urlProjectID = resp.Project.ProjectID
+		} else if resp.Build != nil {
+			urlProjectID = resp.Build.ProjectID
+		}
+	}
+	if urlProjectID != "" {
+		resp.URLs = &statusURLs{
+			PreviewURL:    fmt.Sprintf("%s/preview/%s", baseURL, urlProjectID),
+			ProductionURL: fmt.Sprintf("%s/%s", baseURL, urlProjectID),
+		}
+	}
+
+	if err := emitSuccess(cmd.Name(), resp); err != nil {
+		return newCLIError("output_error", "failed to render JSON output", 1, err)
+	}
+	if isJSONOutput() {
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if resp.Project != nil {
+		fmt.Fprintf(w, "\n📋 Project Information:\n")
+		fmt.Fprintf(w, "ID:\t%s\n", resp.Project.ProjectID)
+		fmt.Fprintf(w, "Name:\t%s\n", resp.Project.Name)
+		fmt.Fprintf(w, "Visibility:\t%s\n", resp.Project.Visibility)
+		fmt.Fprintf(w, "Created:\t%s\n", resp.Project.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(w, "Updated:\t%s\n", resp.Project.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+	if resp.Build != nil {
+		fmt.Fprintf(w, "\n📋 Build Information:\n")
+		fmt.Fprintf(w, "ID:\t%s\n", resp.Build.BuildID)
+		fmt.Fprintf(w, "Status:\t%s\n", resp.Build.Status)
+		fmt.Fprintf(w, "Commit:\t%s\n", resp.Build.CommitID)
+		fmt.Fprintf(w, "Created:\t%s\n", resp.Build.CreatedAt.Format("2006-01-02 15:04:05"))
+		if resp.Build.FinishedAt != nil {
+			fmt.Fprintf(w, "Finished:\t%s\n", resp.Build.FinishedAt.Format("2006-01-02 15:04:05"))
+		}
+	}
+	w.Flush()
+
+	if showLogs && resp.Logs != "" {
+		fmt.Printf("\n📋 Build Logs:\n%s\n", resp.Logs)
+	}
+	if resp.URLs != nil {
+		fmt.Printf("\n🌐 URLs:\n")
+		fmt.Printf("Preview: %s\n", resp.URLs.PreviewURL)
+		fmt.Printf("Production: %s\n", resp.URLs.ProductionURL)
+	}
 
 	return nil
 }

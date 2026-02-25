@@ -1,0 +1,172 @@
+name: "RobotX Deploy"
+description: "Deploy an app to RobotX by downloading a released robotx binary and invoking the CLI"
+author: "haibingtown"
+
+inputs:
+  base-url:
+    description: "RobotX API base URL"
+    required: true
+  api-key:
+    description: "RobotX API key"
+    required: true
+  project-path:
+    description: "Project path to deploy"
+    required: false
+    default: "."
+  project-name:
+    description: "Project name for new project"
+    required: false
+    default: ""
+  project-id:
+    description: "Existing project ID"
+    required: false
+    default: ""
+  publish:
+    description: "Publish after successful build"
+    required: false
+    default: "false"
+  wait:
+    description: "Wait for build completion"
+    required: false
+    default: "true"
+  timeout:
+    description: "Build timeout (seconds)"
+    required: false
+    default: "600"
+  version:
+    description: "CLI version tag (e.g. v1.2.3) or latest"
+    required: false
+    default: "latest"
+  install-dir:
+    description: "Install directory for robotx binary"
+    required: false
+    default: ""
+  repo:
+    description: "Repository owner/name hosting release artifacts"
+    required: false
+    default: "haibingtown/robotx_cli"
+  extra-args:
+    description: "Additional CLI args appended after built-in flags"
+    required: false
+    default: ""
+
+outputs:
+  project_id:
+    description: "Project ID from deploy result"
+    value: ${{ steps.deploy.outputs.project_id }}
+  build_id:
+    description: "Build ID from deploy result"
+    value: ${{ steps.deploy.outputs.build_id }}
+  preview_url:
+    description: "Preview URL from deploy result"
+    value: ${{ steps.deploy.outputs.preview_url }}
+  production_url:
+    description: "Production URL from deploy result"
+    value: ${{ steps.deploy.outputs.production_url }}
+  status:
+    description: "Build status from deploy result"
+    value: ${{ steps.deploy.outputs.status }}
+  raw_json:
+    description: "Raw JSON output from robotx deploy"
+    value: ${{ steps.deploy.outputs.raw_json }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install robotx CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        INSTALL_DIR="${{ inputs.install-dir }}"
+        if [[ -z "${INSTALL_DIR}" ]]; then
+          INSTALL_DIR="${RUNNER_TEMP}/robotx-bin"
+        fi
+
+        ROBOTX_VERSION="${{ inputs.version }}" \
+        ROBOTX_INSTALL_DIR="${INSTALL_DIR}" \
+        ROBOTX_REPO="${{ inputs.repo }}" \
+          bash "${GITHUB_ACTION_PATH}/scripts/install.sh"
+
+        echo "ROBOTX_INSTALL_DIR=${INSTALL_DIR}" >> "${GITHUB_ENV}"
+
+    - name: Deploy
+      id: deploy
+      shell: bash
+      env:
+        INPUT_BASE_URL: ${{ inputs.base-url }}
+        INPUT_API_KEY: ${{ inputs.api-key }}
+        INPUT_PROJECT_PATH: ${{ inputs.project-path }}
+        INPUT_PROJECT_NAME: ${{ inputs.project-name }}
+        INPUT_PROJECT_ID: ${{ inputs.project-id }}
+        INPUT_PUBLISH: ${{ inputs.publish }}
+        INPUT_WAIT: ${{ inputs.wait }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |
+        set -euo pipefail
+
+        INSTALL_DIR="${ROBOTX_INSTALL_DIR}"
+
+        ROBOTX_BIN="${INSTALL_DIR}/robotx"
+        if [[ ! -x "${ROBOTX_BIN}" ]]; then
+          echo "robotx binary not found at ${ROBOTX_BIN}" >&2
+          exit 1
+        fi
+
+        cmd=("${ROBOTX_BIN}" deploy "${INPUT_PROJECT_PATH}" --output json --base-url "${INPUT_BASE_URL}" --api-key "${INPUT_API_KEY}" --wait="${INPUT_WAIT}" --timeout "${INPUT_TIMEOUT}")
+
+        if [[ -n "${INPUT_PROJECT_ID}" ]]; then
+          cmd+=(--project-id "${INPUT_PROJECT_ID}")
+        elif [[ -n "${INPUT_PROJECT_NAME}" ]]; then
+          cmd+=(--name "${INPUT_PROJECT_NAME}")
+        fi
+
+        if [[ "${INPUT_PUBLISH}" == "true" ]]; then
+          cmd+=(--publish)
+        fi
+
+        if [[ -n "${INPUT_EXTRA_ARGS}" ]]; then
+          eval "set -- ${INPUT_EXTRA_ARGS}"
+          cmd+=("$@")
+        fi
+
+        ROBOTX_JSON="$("${cmd[@]}")"
+
+        export ROBOTX_JSON
+        python3 - <<'PY'
+import json
+import os
+
+raw = os.environ.get("ROBOTX_JSON", "").strip()
+payload = json.loads(raw) if raw else {}
+data = payload.get("data") or {}
+project = data.get("project") if isinstance(data.get("project"), dict) else {}
+build = data.get("build") if isinstance(data.get("build"), dict) else {}
+urls = data.get("urls") if isinstance(data.get("urls"), dict) else {}
+
+def first_non_empty(*values):
+    for value in values:
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+project_id = first_non_empty(data.get("project_id"), project.get("project_id"), build.get("project_id"))
+build_id = first_non_empty(data.get("build_id"), build.get("build_id"))
+preview_url = first_non_empty(data.get("preview_url"), urls.get("preview_url"))
+production_url = first_non_empty(data.get("production_url"), urls.get("production_url"))
+status = first_non_empty(data.get("build_status"), build.get("status"))
+
+with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+    f.write(f"project_id={project_id}\\n")
+    f.write(f"build_id={build_id}\\n")
+    f.write(f"preview_url={preview_url}\\n")
+    f.write(f"production_url={production_url}\\n")
+    f.write(f"status={status}\\n")
+PY
+
+        {
+          echo "raw_json<<EOF"
+          echo "${ROBOTX_JSON}"
+          echo "EOF"
+        } >> "${GITHUB_OUTPUT}"

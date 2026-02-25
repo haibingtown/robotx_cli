@@ -1,0 +1,37 @@
+name: robotx-action-example
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_path:
+        description: "Project path"
+        required: false
+        default: "."
+      project_name:
+        description: "Project name"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy with RobotX action
+        id: deploy
+        uses: ./
+        with:
+          base-url: ${{ secrets.ROBOTX_BASE_URL }}
+          api-key: ${{ secrets.ROBOTX_API_KEY }}
+          project-path: ${{ github.event.inputs.project_path }}
+          project-name: ${{ github.event.inputs.project_name }}
+          publish: "false"
+
+      - name: Print result
+        shell: bash
+        run: |
+          echo "project_id=${{ steps.deploy.outputs.project_id }}"
+          echo "build_id=${{ steps.deploy.outputs.build_id }}"
+          echo "status=${{ steps.deploy.outputs.status }}"
+          echo "preview_url=${{ steps.deploy.outputs.preview_url }}"
