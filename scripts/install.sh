@@ -40,7 +40,11 @@ esac
 resolve_tag() {
   if [[ "${REQUESTED_VERSION}" == "latest" ]]; then
     local tag
-    tag="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep -m1 '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')"
+    tag="$(
+      curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+        | sed -nE 's/^[[:space:]]*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' \
+        | tail -n1
+    )"
     if [[ -z "${tag}" ]]; then
       echo "failed to resolve latest release tag from ${REPO}" >&2
       exit 1

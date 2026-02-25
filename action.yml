@@ -6,9 +6,17 @@ inputs:
   base-url:
     description: "RobotX API base URL"
     required: true
+  base_url:
+    description: "RobotX API base URL (alias of base-url)"
+    required: false
+    default: ""
   api-key:
     description: "RobotX API key"
     required: true
+  api_key:
+    description: "RobotX API key (alias of api-key)"
+    required: false
+    default: ""
   project-path:
     description: "Project path to deploy"
     required: false
@@ -86,6 +94,7 @@ runs:
         ROBOTX_VERSION="${{ inputs.version }}" \
         ROBOTX_INSTALL_DIR="${INSTALL_DIR}" \
         ROBOTX_REPO="${{ inputs.repo }}" \
+        ROBOTX_AUTO_PATH="0" \
           bash "${GITHUB_ACTION_PATH}/scripts/install.sh"
 
         echo "ROBOTX_INSTALL_DIR=${INSTALL_DIR}" >> "${GITHUB_ENV}"
@@ -95,7 +104,9 @@ runs:
       shell: bash
       env:
         INPUT_BASE_URL: ${{ inputs.base-url }}
+        INPUT_BASE_URL_ALT: ${{ inputs.base_url }}
         INPUT_API_KEY: ${{ inputs.api-key }}
+        INPUT_API_KEY_ALT: ${{ inputs.api_key }}
         INPUT_PROJECT_PATH: ${{ inputs.project-path }}
         INPUT_PROJECT_NAME: ${{ inputs.project-name }}
         INPUT_PROJECT_ID: ${{ inputs.project-id }}
@@ -114,7 +125,27 @@ runs:
           exit 1
         fi
 
-        cmd=("${ROBOTX_BIN}" deploy "${INPUT_PROJECT_PATH}" --output json --base-url "${INPUT_BASE_URL}" --api-key "${INPUT_API_KEY}" --wait="${INPUT_WAIT}" --timeout "${INPUT_TIMEOUT}")
+        EFFECTIVE_BASE_URL="${INPUT_BASE_URL}"
+        if [[ -z "${EFFECTIVE_BASE_URL}" ]]; then
+          EFFECTIVE_BASE_URL="${INPUT_BASE_URL_ALT}"
+        fi
+
+        EFFECTIVE_API_KEY="${INPUT_API_KEY}"
+        if [[ -z "${EFFECTIVE_API_KEY}" ]]; then
+          EFFECTIVE_API_KEY="${INPUT_API_KEY_ALT}"
+        fi
+
+        if [[ -z "${EFFECTIVE_BASE_URL}" ]]; then
+          echo "::error::missing input: base-url (or base_url)" >&2
+          exit 1
+        fi
+
+        if [[ -z "${EFFECTIVE_API_KEY}" ]]; then
+          echo "::error::missing input: api-key (or api_key)" >&2
+          exit 1
+        fi
+
+        cmd=("${ROBOTX_BIN}" deploy "${INPUT_PROJECT_PATH}" --output json --base-url "${EFFECTIVE_BASE_URL}" --api-key "${EFFECTIVE_API_KEY}" --wait="${INPUT_WAIT}" --timeout "${INPUT_TIMEOUT}")
 
         if [[ -n "${INPUT_PROJECT_ID}" ]]; then
           cmd+=(--project-id "${INPUT_PROJECT_ID}")
