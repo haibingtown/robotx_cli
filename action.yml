@@ -118,7 +118,7 @@ runs:
 
         if [[ "${REQUESTED_VERSION}" == "source" ]]; then
           install_source
-        elif [[ "${REQUESTED_VERSION}" == "latest" && ( "${ACTION_REF}" == "main" || -z "${ACTION_REF}" ) ]]; then
+        elif [[ "${REQUESTED_VERSION}" == "latest" && ( "${ACTION_REF}" == "main" || "${ACTION_REF}" == "refs/heads/main" ) ]]; then
           if ! install_source; then
             echo "Source build failed; falling back to latest release binary." >&2
             install_release "latest"
