@@ -21,12 +21,28 @@ curl -fsSL https://raw.githubusercontent.com/haibingtown/robotx_cli/main/scripts
 - `ROBOTX_VERSION=latest`（默认）或 `vX.Y.Z`
 - `ROBOTX_INSTALL_DIR=$HOME/.local/bin`
 - `ROBOTX_REPO=haibingtown/robotx_cli`
+- `ROBOTX_AUTO_PATH=1`（默认，自动写入 shell profile）或 `0`
 
 ### 方式 2: 从源码安装
 
 ```bash
-go install github.com/haibingtown/robotx_cli@latest
+go install github.com/haibingtown/robotx_cli/cmd/robotx@latest
 ```
+
+### 方式 3: 使用 Go 安装并自动配置 PATH
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/haibingtown/robotx_cli/main/scripts/go-install.sh | bash
+```
+
+可选参数：
+
+- `ROBOTX_GO_PACKAGE=github.com/haibingtown/robotx_cli/cmd/robotx@latest`
+- `ROBOTX_LEGACY_GO_PACKAGE=github.com/haibingtown/robotx_cli@latest`（主包安装失败时回退）
+- `ROBOTX_INSTALL_DIR=$HOME/.local/bin`
+- `ROBOTX_AUTO_PATH=1`（默认，自动写入 shell profile）或 `0`
+
+说明：纯 `go install ...` 命令本身不会自动修改你的 shell 环境变量（PATH），这是 Go 工具链行为；如需“安装后直接可用”建议用方式 1 或方式 3。
 
 ## 配置
 

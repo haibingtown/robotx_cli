@@ -15,8 +15,8 @@ Use this skill when an agent needs to deploy or update a project on RobotX using
 - Install (binary-first, no Go required):
   - `curl -fsSL https://raw.githubusercontent.com/haibingtown/robotx_cli/main/scripts/install.sh | bash`
 - Fallback install (if you explicitly want source install):
-  - `go install github.com/haibingtown/robotx_cli@latest`
-  - `export PATH="$(go env GOPATH)/bin:$PATH"`
+  - `go install github.com/haibingtown/robotx_cli/cmd/robotx@latest`
+  - Or auto PATH setup: `curl -fsSL https://raw.githubusercontent.com/haibingtown/robotx_cli/main/scripts/go-install.sh | bash`
 
 ## Configure
 

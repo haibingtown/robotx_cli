@@ -7,6 +7,21 @@ curl -fsSL https://raw.githubusercontent.com/haibingtown/robotx_cli/main/scripts
 robotx --version
 ```
 
+或使用 Go（自动写入 PATH）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/haibingtown/robotx_cli/main/scripts/go-install.sh | bash
+robotx --version
+```
+
+> 脚本会优先安装 `cmd/robotx@latest`，并在旧版本仓库结构下自动回退并创建 `robotx` 命令别名。
+
+若只想用纯 `go install`：
+
+```bash
+go install github.com/haibingtown/robotx_cli/cmd/robotx@latest
+```
+
 ## 2) 配置
 
 ```bash

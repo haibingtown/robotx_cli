@@ -135,35 +135,35 @@ runs:
 
         export ROBOTX_JSON
         python3 - <<'PY'
-import json
-import os
+        import json
+        import os
 
-raw = os.environ.get("ROBOTX_JSON", "").strip()
-payload = json.loads(raw) if raw else {}
-data = payload.get("data") or {}
-project = data.get("project") if isinstance(data.get("project"), dict) else {}
-build = data.get("build") if isinstance(data.get("build"), dict) else {}
-urls = data.get("urls") if isinstance(data.get("urls"), dict) else {}
+        raw = os.environ.get("ROBOTX_JSON", "").strip()
+        payload = json.loads(raw) if raw else {}
+        data = payload.get("data") or {}
+        project = data.get("project") if isinstance(data.get("project"), dict) else {}
+        build = data.get("build") if isinstance(data.get("build"), dict) else {}
+        urls = data.get("urls") if isinstance(data.get("urls"), dict) else {}
 
-def first_non_empty(*values):
-    for value in values:
-        if isinstance(value, str) and value:
-            return value
-    return ""
+        def first_non_empty(*values):
+            for value in values:
+                if isinstance(value, str) and value:
+                    return value
+            return ""
 
-project_id = first_non_empty(data.get("project_id"), project.get("project_id"), build.get("project_id"))
-build_id = first_non_empty(data.get("build_id"), build.get("build_id"))
-preview_url = first_non_empty(data.get("preview_url"), urls.get("preview_url"))
-production_url = first_non_empty(data.get("production_url"), urls.get("production_url"))
-status = first_non_empty(data.get("build_status"), build.get("status"))
+        project_id = first_non_empty(data.get("project_id"), project.get("project_id"), build.get("project_id"))
+        build_id = first_non_empty(data.get("build_id"), build.get("build_id"))
+        preview_url = first_non_empty(data.get("preview_url"), urls.get("preview_url"))
+        production_url = first_non_empty(data.get("production_url"), urls.get("production_url"))
+        status = first_non_empty(data.get("build_status"), build.get("status"))
 
-with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-    f.write(f"project_id={project_id}\\n")
-    f.write(f"build_id={build_id}\\n")
-    f.write(f"preview_url={preview_url}\\n")
-    f.write(f"production_url={production_url}\\n")
-    f.write(f"status={status}\\n")
-PY
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"project_id={project_id}\\n")
+            f.write(f"build_id={build_id}\\n")
+            f.write(f"preview_url={preview_url}\\n")
+            f.write(f"production_url={production_url}\\n")
+            f.write(f"status={status}\\n")
+        PY
 
         {
           echo "raw_json<<EOF"

@@ -1,5 +1,5 @@
 # Binaries
-robotx
+/robotx
 robotx-*
 
 # Go build artifacts
@@ -36,3 +36,5 @@ Thumbs.db
 *.tmp
 *.zip
 /tmp/
+.gocache/
+.gomodcache/

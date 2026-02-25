@@ -1,9 +1,9 @@
-.PHONY: build install install-user install-binary clean test deps tidy build-all help
+.PHONY: build install install-user install-binary install-go clean test deps tidy build-all help
 
 # Build the CLI binary
 build:
 	@echo "Building RobotX CLI..."
-	go build -o robotx main.go
+	go build -o robotx ./cmd/robotx
 	@echo "✅ Build complete: robotx"
 
 # Install the CLI to /usr/local/bin
@@ -24,6 +24,11 @@ install-user: build
 install-binary:
 	@echo "Installing RobotX CLI from release binaries..."
 	./scripts/install.sh
+
+# Install with go install and auto PATH update
+install-go:
+	@echo "Installing RobotX CLI with go install..."
+	./scripts/go-install.sh
 
 # Clean build artifacts
 clean:
@@ -51,11 +56,11 @@ tidy:
 # Build for multiple platforms
 build-all:
 	@echo "Building for multiple platforms..."
-	GOOS=darwin GOARCH=amd64 go build -o robotx-darwin-amd64 main.go
-	GOOS=darwin GOARCH=arm64 go build -o robotx-darwin-arm64 main.go
-	GOOS=linux GOARCH=amd64 go build -o robotx-linux-amd64 main.go
-	GOOS=linux GOARCH=arm64 go build -o robotx-linux-arm64 main.go
-	GOOS=windows GOARCH=amd64 go build -o robotx-windows-amd64.exe main.go
+	GOOS=darwin GOARCH=amd64 go build -o robotx-darwin-amd64 ./cmd/robotx
+	GOOS=darwin GOARCH=arm64 go build -o robotx-darwin-arm64 ./cmd/robotx
+	GOOS=linux GOARCH=amd64 go build -o robotx-linux-amd64 ./cmd/robotx
+	GOOS=linux GOARCH=arm64 go build -o robotx-linux-arm64 ./cmd/robotx
+	GOOS=windows GOARCH=amd64 go build -o robotx-windows-amd64.exe ./cmd/robotx
 	@echo "✅ Multi-platform build complete"
 
 
@@ -68,6 +73,7 @@ help:
 	@echo "  install      - Install the CLI to /usr/local/bin (requires sudo)"
 	@echo "  install-user - Install the CLI to ~/bin (no sudo required)"
 	@echo "  install-binary - Install prebuilt binary from GitHub releases"
+	@echo "  install-go   - Install with go install and auto PATH update"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  test         - Run tests"
 	@echo "  deps         - Download dependencies"

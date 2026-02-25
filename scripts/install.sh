@@ -4,6 +4,7 @@ set -euo pipefail
 REPO="${ROBOTX_REPO:-haibingtown/robotx_cli}"
 REQUESTED_VERSION="${ROBOTX_VERSION:-latest}"
 INSTALL_DIR="${ROBOTX_INSTALL_DIR:-${HOME}/.local/bin}"
+AUTO_PATH="${ROBOTX_AUTO_PATH:-1}"
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "curl is required" >&2
@@ -98,7 +99,61 @@ mkdir -p "${INSTALL_DIR}"
 tar -xzf "${TMP_DIR}/${ARCHIVE_NAME}" -C "${TMP_DIR}"
 install -m 0755 "${TMP_DIR}/robotx" "${INSTALL_DIR}/robotx"
 
+detect_profile_file() {
+  local shell_name
+  shell_name="$(basename "${SHELL:-}")"
+
+  case "${shell_name}" in
+    bash)
+      if [[ "${OSTYPE:-}" == darwin* ]]; then
+        echo "${HOME}/.bash_profile"
+      elif [[ -f "${HOME}/.bash_profile" ]]; then
+        echo "${HOME}/.bash_profile"
+      else
+        echo "${HOME}/.bashrc"
+      fi
+      ;;
+    zsh)
+      echo "${HOME}/.zshrc"
+      ;;
+    *)
+      if [[ -f "${HOME}/.profile" ]]; then
+        echo "${HOME}/.profile"
+      else
+        echo "${HOME}/.bash_profile"
+      fi
+      ;;
+  esac
+}
+
 echo "Installed robotx ${TAG} to ${INSTALL_DIR}/robotx"
 if [[ ":${PATH}:" != *":${INSTALL_DIR}:"* ]]; then
-  echo "Warning: ${INSTALL_DIR} is not on PATH" >&2
+  if [[ "${AUTO_PATH}" == "1" ]]; then
+    PROFILE_FILE="$(detect_profile_file)"
+    PATH_EXPORT="export PATH=\"${INSTALL_DIR}:\$PATH\""
+    PROFILE_DIR="$(dirname "${PROFILE_FILE}")"
+
+    if mkdir -p "${PROFILE_DIR}" && touch "${PROFILE_FILE}"; then
+      if ! grep -Fq "${PATH_EXPORT}" "${PROFILE_FILE}"; then
+        if ! {
+          echo ""
+          echo "# Added by RobotX installer"
+          echo "${PATH_EXPORT}"
+        } >> "${PROFILE_FILE}"; then
+          echo "Warning: failed to write PATH to ${PROFILE_FILE}" >&2
+        fi
+      fi
+
+      echo "Updated PATH in ${PROFILE_FILE}."
+      echo "Run: source ${PROFILE_FILE}"
+    else
+      echo "Warning: cannot update ${PROFILE_FILE}" >&2
+      echo "Add this line to your shell profile:" >&2
+      echo "  ${PATH_EXPORT}" >&2
+    fi
+  else
+    echo "Warning: ${INSTALL_DIR} is not on PATH" >&2
+    echo "Add this line to your shell profile:" >&2
+    echo "  export PATH=\"${INSTALL_DIR}:\$PATH\"" >&2
+  fi
 fi
