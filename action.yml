@@ -193,6 +193,7 @@ runs:
         python3 - <<'PY'
         import json
         import os
+        import uuid
 
         raw = os.environ.get("ROBOTX_JSON", "").strip()
         payload = json.loads(raw) if raw else {}
@@ -213,16 +214,18 @@ runs:
         production_url = first_non_empty(data.get("production_url"), urls.get("production_url"))
         status = first_non_empty(data.get("build_status"), build.get("status"))
 
-        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-            f.write(f"project_id={project_id}\\n")
-            f.write(f"build_id={build_id}\\n")
-            f.write(f"preview_url={preview_url}\\n")
-            f.write(f"production_url={production_url}\\n")
-            f.write(f"status={status}\\n")
-        PY
+        output_path = os.environ["GITHUB_OUTPUT"]
+        delimiter = f"ROBOTX_JSON_{uuid.uuid4().hex}"
 
-        {
-          echo "raw_json<<EOF"
-          echo "${ROBOTX_JSON}"
-          echo "EOF"
-        } >> "${GITHUB_OUTPUT}"
+        with open(output_path, "a", encoding="utf-8") as f:
+            f.write(f"project_id={project_id}\n")
+            f.write(f"build_id={build_id}\n")
+            f.write(f"preview_url={preview_url}\n")
+            f.write(f"production_url={production_url}\n")
+            f.write(f"status={status}\n")
+            f.write(f"raw_json<<{delimiter}\n")
+            f.write(raw)
+            if raw and not raw.endswith("\n"):
+                f.write("\n")
+            f.write(f"{delimiter}\n")
+        PY
