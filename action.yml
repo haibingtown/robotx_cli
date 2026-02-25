@@ -42,7 +42,7 @@ inputs:
     required: false
     default: "600"
   version:
-    description: "CLI version tag (e.g. v1.2.3) or latest"
+    description: "CLI install mode: release tag (e.g. v1.2.3), latest, or source"
     required: false
     default: "latest"
   install-dir:
@@ -91,13 +91,44 @@ runs:
           INSTALL_DIR="${RUNNER_TEMP}/robotx-bin"
         fi
 
-        ROBOTX_VERSION="${{ inputs.version }}" \
-        ROBOTX_INSTALL_DIR="${INSTALL_DIR}" \
-        ROBOTX_REPO="${{ inputs.repo }}" \
-        ROBOTX_AUTO_PATH="0" \
-          bash "${GITHUB_ACTION_PATH}/scripts/install.sh"
+        REQUESTED_VERSION="${{ inputs.version }}"
+        ACTION_REF="${{ github.action_ref }}"
+        export PATH="${INSTALL_DIR}:${PATH}"
+
+        install_release() {
+          ROBOTX_VERSION="$1" \
+          ROBOTX_INSTALL_DIR="${INSTALL_DIR}" \
+          ROBOTX_REPO="${{ inputs.repo }}" \
+          ROBOTX_AUTO_PATH="0" \
+            bash "${GITHUB_ACTION_PATH}/scripts/install.sh"
+        }
+
+        install_source() {
+          if ! command -v go >/dev/null 2>&1; then
+            echo "go is required for source install" >&2
+            return 1
+          fi
+
+          echo "Building robotx from source (${ACTION_REF:-local})..."
+          (
+            cd "${GITHUB_ACTION_PATH}" && \
+            go build -o "${INSTALL_DIR}/robotx" ./cmd/robotx
+          )
+        }
+
+        if [[ "${REQUESTED_VERSION}" == "source" ]]; then
+          install_source
+        elif [[ "${REQUESTED_VERSION}" == "latest" && ( "${ACTION_REF}" == "main" || -z "${ACTION_REF}" ) ]]; then
+          if ! install_source; then
+            echo "Source build failed; falling back to latest release binary." >&2
+            install_release "latest"
+          fi
+        else
+          install_release "${REQUESTED_VERSION}"
+        fi
 
         echo "ROBOTX_INSTALL_DIR=${INSTALL_DIR}" >> "${GITHUB_ENV}"
+        echo "${INSTALL_DIR}" >> "${GITHUB_PATH}"
 
     - name: Deploy
       id: deploy

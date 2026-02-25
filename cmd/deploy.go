@@ -132,6 +132,11 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		return newCLIError("package_failed", "failed to package source", 1, err)
 	}
 	defer os.Remove(zipPath)
+
+	if stat, statErr := os.Stat(zipPath); statErr == nil {
+		sizeMB := float64(stat.Size()) / (1024.0 * 1024.0)
+		logf("📏 Source archive size: %.2f MB\n", sizeMB)
+	}
 	logf("✅ Source packaged: %s\n", zipPath)
 
 	logf("⬆️  Uploading source code...\n")

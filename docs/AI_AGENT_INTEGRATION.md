@@ -95,6 +95,8 @@ else:
     api-key: ${{ secrets.ROBOTX_API_KEY }}
     project-path: .
     project-name: my-app
+    # 可选：使用 action 源码构建 CLI（而非 release 二进制）
+    # version: source
 ```
 
 Action 输出：

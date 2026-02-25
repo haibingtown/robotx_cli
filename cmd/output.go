@@ -130,7 +130,7 @@ func HandleError(err error) int {
 func classifyError(err error) (code string, message string, details interface{}, exitCode int) {
 	var cliErr *cliError
 	if errors.As(err, &cliErr) {
-		return cliErr.Code, cliErr.Message, cliErr.Details, cliErr.ExitCode
+		return cliErr.Code, cliErr.Error(), cliErr.Details, cliErr.ExitCode
 	}
 
 	message = strings.TrimSpace(err.Error())

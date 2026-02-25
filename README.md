@@ -172,6 +172,11 @@ robotx mcp
 
 示例工作流见：`.github/workflows/action-example.yml`。
 
+补充：
+
+- 支持输入别名：`base_url`/`api_key`（等价于 `base-url`/`api-key`）
+- `version: source` 可在 CI 中直接从 action 源码构建 CLI（适合验证 `@main` 最新变更）
+
 ## Release
 
 标签推送触发自动发布：

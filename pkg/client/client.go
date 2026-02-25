@@ -171,7 +171,16 @@ func (c *Client) UploadSource(projectID, sourcePath string) (*SourceCommit, *Bui
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, nil, c.parseError(resp)
+		if resp.StatusCode == http.StatusAccepted {
+			// Continue parsing for APIs that accept upload asynchronously.
+		} else {
+			return nil, nil, c.parseError(resp)
+		}
+	}
+
+	rawBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	var result struct {
@@ -179,13 +188,49 @@ func (c *Client) UploadSource(projectID, sourcePath string) (*SourceCommit, *Bui
 		Build    *Build        `json:"build"`
 		CommitID string        `json:"commit_id"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, nil, fmt.Errorf("failed to decode response: %w", err)
+	if len(rawBody) > 0 {
+		if err := json.Unmarshal(rawBody, &result); err != nil {
+			// Try common wrapped payload structure: {"data": {...}}
+			var wrapped struct {
+				Data struct {
+					Commit   *SourceCommit `json:"commit"`
+					Build    *Build        `json:"build"`
+					CommitID string        `json:"commit_id"`
+				} `json:"data"`
+			}
+			if err2 := json.Unmarshal(rawBody, &wrapped); err2 == nil {
+				result.Commit = wrapped.Data.Commit
+				result.Build = wrapped.Data.Build
+				result.CommitID = wrapped.Data.CommitID
+			} else {
+				return nil, nil, fmt.Errorf("failed to decode response: %w", err)
+			}
+		}
 	}
 
 	if result.Commit == nil && result.CommitID != "" {
 		result.Commit = &SourceCommit{CommitID: result.CommitID, ProjectID: projectID}
 	}
+
+	// Some APIs return a top-level build_id without build object.
+	if result.Build == nil && len(rawBody) > 0 {
+		var fallback struct {
+			BuildID string `json:"build_id"`
+			Data    struct {
+				BuildID string `json:"build_id"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(rawBody, &fallback); err == nil {
+			buildID := strings.TrimSpace(fallback.BuildID)
+			if buildID == "" {
+				buildID = strings.TrimSpace(fallback.Data.BuildID)
+			}
+			if buildID != "" {
+				result.Build = &Build{BuildID: buildID, ProjectID: projectID}
+			}
+		}
+	}
+
 	return result.Commit, result.Build, nil
 }
 
@@ -401,16 +446,43 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 func (c *Client) parseError(resp *http.Response) error {
 	body, _ := io.ReadAll(resp.Body)
 	var errResp struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
+		Error   interface{} `json:"error"`
+		Message string      `json:"message"`
+		Detail  string      `json:"detail"`
+		Code    string      `json:"code"`
 	}
 	if err := json.Unmarshal(body, &errResp); err == nil {
-		if errResp.Message != "" {
-			return fmt.Errorf("API error: %s", errResp.Message)
+		msg := strings.TrimSpace(errResp.Message)
+		if msg == "" {
+			msg = strings.TrimSpace(errResp.Detail)
 		}
-		if errResp.Error != "" {
-			return fmt.Errorf("API error: %s", errResp.Error)
+		if msg == "" {
+			switch v := errResp.Error.(type) {
+			case string:
+				msg = strings.TrimSpace(v)
+			case map[string]interface{}:
+				for _, key := range []string{"message", "detail", "error", "msg"} {
+					if raw, ok := v[key]; ok {
+						if s, ok := raw.(string); ok && strings.TrimSpace(s) != "" {
+							msg = strings.TrimSpace(s)
+							break
+						}
+					}
+				}
+			}
+		}
+
+		if msg != "" {
+			if strings.TrimSpace(errResp.Code) != "" {
+				return fmt.Errorf("API error (status %d, code %s): %s", resp.StatusCode, strings.TrimSpace(errResp.Code), msg)
+			}
+			return fmt.Errorf("API error (status %d): %s", resp.StatusCode, msg)
 		}
 	}
-	return fmt.Errorf("API error: status %d, body: %s", resp.StatusCode, string(body))
+
+	trimmedBody := strings.TrimSpace(string(body))
+	if trimmedBody == "" {
+		return fmt.Errorf("API error: status %d", resp.StatusCode)
+	}
+	return fmt.Errorf("API error: status %d, body: %s", resp.StatusCode, trimmedBody)
 }
