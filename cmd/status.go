@@ -107,7 +107,12 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			urlProjectID = resp.Build.ProjectID
 		}
 	}
-	if urlProjectID != "" {
+	if resp.Project != nil {
+		resp.URLs = &statusURLs{
+			PreviewURL:    projectPreviewURL(resp.Project, baseURL),
+			ProductionURL: resolvePublishURL(baseURL, resp.Project),
+		}
+	} else if urlProjectID != "" {
 		resp.URLs = &statusURLs{
 			PreviewURL:    fmt.Sprintf("%s/preview/%s", baseURL, urlProjectID),
 			ProductionURL: fmt.Sprintf("%s/%s", baseURL, urlProjectID),
@@ -134,6 +139,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(w, "\n📋 Build Information:\n")
 		fmt.Fprintf(w, "ID:\t%s\n", resp.Build.BuildID)
 		fmt.Fprintf(w, "Status:\t%s\n", resp.Build.Status)
+		fmt.Fprintf(w, "Version Seq:\t%s\n", formatBuildVersionSeq(resp.Build.VersionSeq))
+		fmt.Fprintf(w, "Version Label:\t%s\n", valueOrDash(resp.Build.VersionLabel))
+		fmt.Fprintf(w, "Source Ref:\t%s\n", valueOrDash(resp.Build.SourceRef))
 		fmt.Fprintf(w, "Commit:\t%s\n", resp.Build.CommitID)
 		fmt.Fprintf(w, "Created:\t%s\n", resp.Build.CreatedAt.Format("2006-01-02 15:04:05"))
 		if resp.Build.FinishedAt != nil {
@@ -152,4 +160,11 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func formatBuildVersionSeq(seq int64) string {
+	if seq <= 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%d", seq)
 }

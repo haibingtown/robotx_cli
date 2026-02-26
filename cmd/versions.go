@@ -73,12 +73,15 @@ func runVersions(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "BUILD_ID\tSTATUS\tCOMMIT_ID\tCREATED_AT\tFINISHED_AT")
+	fmt.Fprintln(w, "BUILD_ID\tSEQ\tLABEL\tSOURCE_REF\tSTATUS\tCOMMIT_ID\tCREATED_AT\tFINISHED_AT")
 	for _, b := range builds {
 		fmt.Fprintf(
 			w,
-			"%s\t%s\t%s\t%s\t%s\n",
+			"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			b.BuildID,
+			formatBuildVersionSeq(b.VersionSeq),
+			valueOrDash(b.VersionLabel),
+			valueOrDash(b.SourceRef),
 			b.Status,
 			b.CommitID,
 			formatBuildTime(b.CreatedAt),

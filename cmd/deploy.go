@@ -31,24 +31,29 @@ var deployCmd = &cobra.Command{
 }
 
 var (
-	projectName string
-	visibility  string
-	publish     bool
-	wait        bool
-	timeout     int
-	localBuild  bool
-	installCmd  string
-	buildCmd    string
-	outputDir   string
+	projectName  string
+	visibility   string
+	publish      bool
+	wait         bool
+	timeout      int
+	localBuild   bool
+	installCmd   string
+	buildCmd     string
+	outputDir    string
+	versionLabel string
+	sourceRef    string
 )
 
-var projectNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,}[A-Za-z0-9]$`)
+var projectNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{2,61}[a-z0-9]$`)
 
 type deployResponse struct {
 	ProjectID     string `json:"project_id"`
 	ProjectName   string `json:"project_name,omitempty"`
 	CommitID      string `json:"commit_id,omitempty"`
 	BuildID       string `json:"build_id,omitempty"`
+	VersionSeq    int64  `json:"version_seq,omitempty"`
+	VersionLabel  string `json:"version_label,omitempty"`
+	SourceRef     string `json:"source_ref,omitempty"`
 	BuildStatus   string `json:"build_status,omitempty"`
 	PreviewURL    string `json:"preview_url,omitempty"`
 	ProductionURL string `json:"production_url,omitempty"`
@@ -69,6 +74,8 @@ func init() {
 	deployCmd.Flags().StringVar(&installCmd, "install-command", "", "Override install command for local build")
 	deployCmd.Flags().StringVar(&buildCmd, "build-command", "", "Override build command for local build")
 	deployCmd.Flags().StringVar(&outputDir, "output-dir", "", "Override output directory for local build")
+	deployCmd.Flags().StringVar(&versionLabel, "version-label", "", "Optional build version label (e.g. v1.2.3)")
+	deployCmd.Flags().StringVar(&sourceRef, "source-ref", "", "Optional source reference (e.g. tag:v1.2.3, branch:main@<sha>)")
 }
 
 func runDeploy(cmd *cobra.Command, args []string) error {
@@ -104,9 +111,17 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	if usedProjectName == "" {
 		usedProjectName = filepath.Base(absPath)
 	}
+	usedProjectName = strings.ToLower(strings.TrimSpace(usedProjectName))
 	if err := validateProjectName(usedProjectName); err != nil {
 		return newCLIError("invalid_project_name", err.Error(), 1, nil)
 	}
+
+	version := resolveBuildVersionInput()
+	if version != nil {
+		logf("🏷️  Build version label: %s\n", valueOrDash(version.VersionLabel))
+		logf("🔖 Source ref: %s\n", valueOrDash(version.SourceRef))
+	}
+
 	logf("📦 Resolving project by name (create-or-update): %s\n", usedProjectName)
 	proj, err := c.CreateProject(client.CreateProjectRequest{
 		Name:       usedProjectName,
@@ -132,7 +147,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	logf("✅ Source packaged: %s\n", zipPath)
 
 	logf("⬆️  Uploading source code...\n")
-	commit, build, err := c.UploadSource(proj.ProjectID, zipPath)
+	commit, build, err := c.UploadSource(proj.ProjectID, zipPath, version)
 	if err != nil {
 		return newCLIError("api_error", "failed to upload source", 2, err)
 	}
@@ -185,7 +200,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			if commit == nil || commit.CommitID == "" {
 				return newCLIError("build_failed", "no commit ID available to trigger build", 3, nil)
 			}
-			build, err = c.TriggerBuild(proj.ProjectID, commit.CommitID)
+			build, err = c.TriggerBuild(proj.ProjectID, commit.CommitID, version)
 			if err != nil {
 				return newCLIError("api_error", "failed to trigger build", 2, err)
 			}
@@ -214,11 +229,10 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			} else {
 				logf("✅ Build completed successfully!\n")
 			}
-			previewURL = build.PreviewPath
-			if previewURL == "" {
-				previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
+			previewURL = resolvePreviewURL(baseURL, proj, build)
+			if previewURL != "" {
+				logf("🌐 Preview URL: %s\n", previewURL)
 			}
-			logf("🌐 Preview URL: %s\n", previewURL)
 		} else {
 			logf("❌ Build failed with status: %s\n", build.Status)
 
@@ -234,11 +248,10 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		} else {
 			logf("✅ Build completed successfully!\n")
 		}
-		previewURL = build.PreviewPath
-		if previewURL == "" {
-			previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
+		previewURL = resolvePreviewURL(baseURL, proj, build)
+		if previewURL != "" {
+			logf("🌐 Preview URL: %s\n", previewURL)
 		}
-		logf("🌐 Preview URL: %s\n", previewURL)
 	}
 
 	if publish && build != nil && build.Status == "success" {
@@ -249,21 +262,20 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		}
 		logf("✅ Published successfully!\n")
 
-		productionURL = publicPath
+		productionURL = strings.TrimSpace(publicPath)
 		if productionURL == "" {
-			productionURL = fmt.Sprintf("%s/%s", baseURL, proj.ProjectID)
+			productionURL = resolvePublishURL(baseURL, proj)
 		}
-		logf("🌐 Production URL: %s\n", productionURL)
+		if productionURL != "" {
+			logf("🌐 Production URL: %s\n", productionURL)
+		}
 	}
 
 	if previewURL == "" && build != nil && build.Status == "success" {
-		previewURL = build.PreviewPath
-		if previewURL == "" {
-			previewURL = fmt.Sprintf("%s/preview/%s", baseURL, proj.ProjectID)
-		}
+		previewURL = resolvePreviewURL(baseURL, proj, build)
 	}
 	if productionURL == "" && publish && build != nil && build.Status == "success" {
-		productionURL = fmt.Sprintf("%s/%s", baseURL, proj.ProjectID)
+		productionURL = resolvePublishURL(baseURL, proj)
 	}
 
 	if err := emitSuccess(cmd.Name(), deployResponse{
@@ -271,6 +283,9 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		ProjectName:   usedProjectName,
 		CommitID:      safeCommitID(commit),
 		BuildID:       safeBuildID(build),
+		VersionSeq:    safeBuildVersionSeq(build),
+		VersionLabel:  safeBuildVersionLabel(build),
+		SourceRef:     safeBuildSourceRef(build, version),
 		BuildStatus:   safeBuildStatus(build),
 		PreviewURL:    previewURL,
 		ProductionURL: productionURL,
@@ -305,19 +320,69 @@ func safeBuildStatus(build *client.Build) string {
 	return build.Status
 }
 
+func safeBuildVersionSeq(build *client.Build) int64 {
+	if build == nil {
+		return 0
+	}
+	return build.VersionSeq
+}
+
+func safeBuildVersionLabel(build *client.Build) string {
+	if build == nil {
+		return ""
+	}
+	return strings.TrimSpace(build.VersionLabel)
+}
+
+func safeBuildSourceRef(build *client.Build, requested *client.BuildVersionInput) string {
+	if build != nil && strings.TrimSpace(build.SourceRef) != "" {
+		return strings.TrimSpace(build.SourceRef)
+	}
+	if requested == nil {
+		return ""
+	}
+	return strings.TrimSpace(requested.SourceRef)
+}
+
 func validateProjectName(name string) error {
 	trimmed := strings.TrimSpace(name)
 	if trimmed == "" {
 		return fmt.Errorf("project name is required")
 	}
 	if !projectNamePattern.MatchString(trimmed) {
-		return fmt.Errorf("project name must be at least 4 chars and contain only letters, numbers, hyphens, or underscores (first/last must be alphanumeric)")
+		return fmt.Errorf("project name must be 4-63 chars of lowercase letters, digits, or hyphens")
 	}
 	return nil
 }
 
+func resolveBuildVersionInput() *client.BuildVersionInput {
+	label := strings.TrimSpace(versionLabel)
+	ref := strings.TrimSpace(sourceRef)
+	if label == "" && ref == "" {
+		return nil
+	}
+	return &client.BuildVersionInput{
+		VersionLabel: label,
+		SourceRef:    ref,
+	}
+}
+
+func valueOrDash(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "-"
+	}
+	return value
+}
+
+func resolvePreviewURL(baseURL string, project *client.Project, build *client.Build) string {
+	if build != nil && strings.TrimSpace(build.PreviewPath) != "" {
+		return strings.TrimSpace(build.PreviewPath)
+	}
+	return projectPreviewURL(project, baseURL)
+}
+
 func packageSource(projectPath string) (string, error) {
-	// Create temporary zip file
 	tmpFile, err := os.CreateTemp("", "robotx-source-*.zip")
 	if err != nil {
 		return "", err
@@ -327,13 +392,11 @@ func packageSource(projectPath string) (string, error) {
 	zipWriter := zip.NewWriter(tmpFile)
 	defer zipWriter.Close()
 
-	// Walk through project directory
 	err = filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip certain directories
 		relPath, err := filepath.Rel(projectPath, path)
 		if err != nil {
 			return err
@@ -346,12 +409,10 @@ func packageSource(projectPath string) (string, error) {
 			return nil
 		}
 
-		// Skip directories themselves
 		if info.IsDir() {
 			return nil
 		}
 
-		// Add file to zip
 		zipFile, err := zipWriter.Create(relPath)
 		if err != nil {
 			return err

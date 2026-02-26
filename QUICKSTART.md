@@ -43,6 +43,8 @@ robotx deploy . --name my-app --output json
 ```
 
 默认会使用 `--local-build=true` 并在成功后 `--publish=true`；如只想预览可追加 `--publish=false`。
+如需对齐 CI 标识，可追加 `--version-label v1.2.3 --source-ref "tag:v1.2.3@<sha>"`。
+`--name` 需符合服务端规则：`4-63` 位，仅允许小写字母/数字/`-`。
 
 ## 4) 查询状态与日志
 
@@ -65,6 +67,8 @@ robotx publish --project-id proj_123 --build-id build_456 --output json
 - `--local-build`: 本地构建并上传产物（默认 `true`，可用 `--local-build=false` 改为云端构建）
 - `--wait=false`: 不等待构建结束
 - `--timeout 900`: 自定义等待超时
+- `--version-label`: 自定义版本号（不传由服务端自动递增）
+- `--source-ref`: 来源标识（如 tag/branch/commit）
 
 ## 注意
 

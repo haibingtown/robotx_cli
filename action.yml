@@ -25,6 +25,22 @@ inputs:
     description: "Project name (deploy will create-or-update for same owner)"
     required: false
     default: ""
+  version-label:
+    description: "Optional build version label (must match server version_label format)"
+    required: false
+    default: ""
+  version_label:
+    description: "Optional build version label (alias of version-label)"
+    required: false
+    default: ""
+  source-ref:
+    description: "Optional source reference (e.g. tag:v1.2.3, branch:main@<sha>)"
+    required: false
+    default: ""
+  source_ref:
+    description: "Optional source reference (alias of source-ref)"
+    required: false
+    default: ""
   publish:
     description: "Publish after successful build"
     required: false
@@ -74,6 +90,15 @@ outputs:
   status:
     description: "Build status from deploy result"
     value: ${{ steps.deploy.outputs.status }}
+  version_label:
+    description: "Build version label from deploy result"
+    value: ${{ steps.deploy.outputs.version_label }}
+  version_seq:
+    description: "Build version sequence from deploy result"
+    value: ${{ steps.deploy.outputs.version_seq }}
+  source_ref:
+    description: "Build source reference from deploy result"
+    value: ${{ steps.deploy.outputs.source_ref }}
   raw_json:
     description: "Raw JSON output from robotx deploy"
     value: ${{ steps.deploy.outputs.raw_json }}
@@ -140,6 +165,10 @@ runs:
         INPUT_API_KEY_ALT: ${{ inputs.api_key }}
         INPUT_PROJECT_PATH: ${{ inputs.project-path }}
         INPUT_PROJECT_NAME: ${{ inputs.project-name }}
+        INPUT_VERSION_LABEL: ${{ inputs.version-label }}
+        INPUT_VERSION_LABEL_ALT: ${{ inputs.version_label }}
+        INPUT_SOURCE_REF: ${{ inputs.source-ref }}
+        INPUT_SOURCE_REF_ALT: ${{ inputs.source_ref }}
         INPUT_PUBLISH: ${{ inputs.publish }}
         INPUT_LOCAL_BUILD: ${{ inputs.local-build }}
         INPUT_WAIT: ${{ inputs.wait }}
@@ -176,10 +205,44 @@ runs:
           exit 1
         fi
 
+        EFFECTIVE_VERSION_LABEL="${INPUT_VERSION_LABEL}"
+        if [[ -z "${EFFECTIVE_VERSION_LABEL}" ]]; then
+          EFFECTIVE_VERSION_LABEL="${INPUT_VERSION_LABEL_ALT}"
+        fi
+
+        EFFECTIVE_SOURCE_REF="${INPUT_SOURCE_REF}"
+        if [[ -z "${EFFECTIVE_SOURCE_REF}" ]]; then
+          EFFECTIVE_SOURCE_REF="${INPUT_SOURCE_REF_ALT}"
+        fi
+        if [[ -z "${EFFECTIVE_SOURCE_REF}" ]]; then
+          REF_PART=""
+          if [[ -n "${GITHUB_REF_NAME:-}" ]]; then
+            if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+              REF_PART="tag:${GITHUB_REF_NAME}"
+            elif [[ "${GITHUB_REF_TYPE:-}" == "branch" ]]; then
+              REF_PART="branch:${GITHUB_REF_NAME}"
+            fi
+          fi
+          SHA_PART="${GITHUB_SHA:-}"
+          if [[ -n "${REF_PART}" && -n "${SHA_PART}" ]]; then
+            EFFECTIVE_SOURCE_REF="${REF_PART}@${SHA_PART}"
+          elif [[ -n "${REF_PART}" ]]; then
+            EFFECTIVE_SOURCE_REF="${REF_PART}"
+          elif [[ -n "${SHA_PART}" ]]; then
+            EFFECTIVE_SOURCE_REF="${SHA_PART}"
+          fi
+        fi
+
         cmd=("${ROBOTX_BIN}" deploy "${INPUT_PROJECT_PATH}" --output json --base-url "${EFFECTIVE_BASE_URL}" --api-key "${EFFECTIVE_API_KEY}" --publish="${INPUT_PUBLISH}" --local-build="${INPUT_LOCAL_BUILD}" --wait="${INPUT_WAIT}" --timeout "${INPUT_TIMEOUT}")
 
         if [[ -n "${INPUT_PROJECT_NAME}" ]]; then
           cmd+=(--name "${INPUT_PROJECT_NAME}")
+        fi
+        if [[ -n "${EFFECTIVE_VERSION_LABEL}" ]]; then
+          cmd+=(--version-label "${EFFECTIVE_VERSION_LABEL}")
+        fi
+        if [[ -n "${EFFECTIVE_SOURCE_REF}" ]]; then
+          cmd+=(--source-ref "${EFFECTIVE_SOURCE_REF}")
         fi
 
         if [[ -n "${INPUT_EXTRA_ARGS}" ]]; then
@@ -213,6 +276,12 @@ runs:
         preview_url = first_non_empty(data.get("preview_url"), urls.get("preview_url"))
         production_url = first_non_empty(data.get("production_url"), urls.get("production_url"))
         status = first_non_empty(data.get("build_status"), build.get("status"))
+        version_label = first_non_empty(data.get("version_label"), build.get("version_label"))
+        source_ref = first_non_empty(data.get("source_ref"), build.get("source_ref"))
+        version_seq_raw = data.get("version_seq")
+        if version_seq_raw in (None, ""):
+            version_seq_raw = build.get("version_seq")
+        version_seq = "" if version_seq_raw in (None, "") else str(version_seq_raw)
 
         output_path = os.environ["GITHUB_OUTPUT"]
         delimiter = f"ROBOTX_JSON_{uuid.uuid4().hex}"
@@ -223,6 +292,9 @@ runs:
             f.write(f"preview_url={preview_url}\n")
             f.write(f"production_url={production_url}\n")
             f.write(f"status={status}\n")
+            f.write(f"version_label={version_label}\n")
+            f.write(f"version_seq={version_seq}\n")
+            f.write(f"source_ref={source_ref}\n")
             f.write(f"raw_json<<{delimiter}\n")
             f.write(raw)
             if raw and not raw.endswith("\n"):

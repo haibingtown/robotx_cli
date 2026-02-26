@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/haibingtown/robotx_cli/pkg/client"
 
@@ -56,9 +57,14 @@ func runPublish(cmd *cobra.Command, args []string) error {
 	}
 
 	logf("✅ Published successfully!\n")
-	prodURL := publicPath
+	prodURL := strings.TrimSpace(publicPath)
 	if prodURL == "" {
-		prodURL = fmt.Sprintf("%s/%s", baseURL, publishProjectID)
+		if project, err := c.GetProject(publishProjectID); err == nil {
+			prodURL = resolvePublishURL(baseURL, project)
+		}
+	}
+	if prodURL == "" {
+		prodURL = fmt.Sprintf("%s/%s", strings.TrimSuffix(baseURL, "/"), publishProjectID)
 	}
 	logf("🌐 Production URL: %s\n", prodURL)
 

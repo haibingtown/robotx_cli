@@ -104,15 +104,19 @@ export ROBOTX_API_KEY=your-api-key
 ```bash
 robotx deploy [project-path] \
   [--name my-app] \
+  [--version-label v1.2.3] [--source-ref "tag:v1.2.3@<sha>"] \
   [--publish=true] [--local-build=true] [--wait=true] [--timeout 600]
 ```
 
-项目名规则（与服务端一致）：至少 4 个字符，仅允许字母/数字/`_`/`-`，且首尾必须是字母或数字。
+项目名规则（与服务端一致）：长度 4-63，仅允许小写字母/数字/`-`，且首尾必须是字母或数字。
 
 默认行为：
 
 - `--local-build=true`：本地构建并上传产物
 - `--publish=true`：构建成功后自动发布
+- `--version-label`：显式指定部署版本号（不传则服务端按数字递增）
+- `--source-ref`：记录来源标识（建议在 CI 中传 `tag/branch + commit`）
+- Preview 链接默认仅项目 owner 可访问；生产访问策略以 publish 版本策略为准
 
 本地构建模式（默认开启）：
 
@@ -183,13 +187,15 @@ robotx mcp
 1. 下载 release 二进制
 2. 校验 checksum
 3. 执行 `robotx deploy --local-build=true --publish=true --output json`
-4. 输出 `project_id/build_id/status/url` 等字段
+4. 输出 `project_id/build_id/status/url/version_label/version_seq/source_ref` 等字段
 
 示例工作流见：`.github/workflows/action-example.yml`。
 
 补充：
 
 - 支持输入别名：`base_url`/`api_key`（等价于 `base-url`/`api-key`）
+- 支持输入别名：`version_label`/`source_ref`（等价于 `version-label`/`source-ref`）
+- 未显式传 `source-ref` 时，action 会默认使用 `GITHUB_REF` + `GITHUB_SHA` 生成来源标识
 - `version: source` 可在 CI 中直接从 action 源码构建 CLI（适合验证 `@main` 最新变更）
 
 ## Release

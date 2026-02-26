@@ -32,11 +32,31 @@ func NewClient(baseURL, apiKey string) *Client {
 
 // Project represents a RobotX project
 type Project struct {
-	ProjectID  string    `json:"project_id"`
-	Name       string    `json:"name"`
-	Visibility string    `json:"visibility"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ProjectID   string              `json:"project_id"`
+	Name        string              `json:"name"`
+	Visibility  string              `json:"visibility"`
+	PreviewURL  string              `json:"preview_url,omitempty"`
+	PublishURL  string              `json:"publish_url,omitempty"`
+	RuntimeRefs *ProjectRuntimeRefs `json:"runtime_refs,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+}
+
+type RuntimeRefVersion struct {
+	Ref          string    `json:"ref"`
+	ArtifactID   string    `json:"artifact_id,omitempty"`
+	BuildID      string    `json:"build_id,omitempty"`
+	CommitID     string    `json:"commit_id,omitempty"`
+	VersionSeq   int64     `json:"version_seq,omitempty"`
+	VersionLabel string    `json:"version_label,omitempty"`
+	SourceRef    string    `json:"source_ref,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	URL          string    `json:"url,omitempty"`
+}
+
+type ProjectRuntimeRefs struct {
+	Preview *RuntimeRefVersion `json:"preview,omitempty"`
+	Publish *RuntimeRefVersion `json:"publish,omitempty"`
 }
 
 // BuildPlan describes detected build instructions from server-side scanning.
@@ -65,11 +85,19 @@ type SourceCommit struct {
 	ScannerResult *ScannerResult `json:"scanner_result,omitempty"`
 }
 
+type BuildVersionInput struct {
+	VersionLabel string `json:"version_label,omitempty"`
+	SourceRef    string `json:"source_ref,omitempty"`
+}
+
 // Build represents a build task
 type Build struct {
 	BuildID           string     `json:"build_id"`
 	ProjectID         string     `json:"project_id"`
 	CommitID          string     `json:"commit_id"`
+	VersionSeq        int64      `json:"version_seq,omitempty"`
+	VersionLabel      string     `json:"version_label,omitempty"`
+	SourceRef         string     `json:"source_ref,omitempty"`
 	Status            string     `json:"status"`
 	RuntimeArtifactID string     `json:"runtime_artifact_id,omitempty"`
 	ErrorMsg          string     `json:"error_msg,omitempty"`
@@ -130,7 +158,7 @@ func (c *Client) GetProject(projectID string) (*Project, error) {
 }
 
 // UploadSource uploads source code and creates a commit/build.
-func (c *Client) UploadSource(projectID, sourcePath string) (*SourceCommit, *Build, error) {
+func (c *Client) UploadSource(projectID, sourcePath string, version *BuildVersionInput) (*SourceCommit, *Build, error) {
 	// Create multipart form
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -149,6 +177,18 @@ func (c *Client) UploadSource(projectID, sourcePath string) (*SourceCommit, *Bui
 
 	if _, err := io.Copy(part, file); err != nil {
 		return nil, nil, fmt.Errorf("failed to copy file: %w", err)
+	}
+	if version != nil {
+		if versionLabel := strings.TrimSpace(version.VersionLabel); versionLabel != "" {
+			if err := writer.WriteField("version_label", versionLabel); err != nil {
+				return nil, nil, fmt.Errorf("failed to write version_label: %w", err)
+			}
+		}
+		if sourceRef := strings.TrimSpace(version.SourceRef); sourceRef != "" {
+			if err := writer.WriteField("source_ref", sourceRef); err != nil {
+				return nil, nil, fmt.Errorf("failed to write source_ref: %w", err)
+			}
+		}
 	}
 
 	if err := writer.Close(); err != nil {
@@ -235,10 +275,19 @@ func (c *Client) UploadSource(projectID, sourcePath string) (*SourceCommit, *Bui
 }
 
 // TriggerBuild triggers a build for a commit (legacy API).
-func (c *Client) TriggerBuild(projectID, commitID string) (*Build, error) {
-	body, err := json.Marshal(map[string]string{
+func (c *Client) TriggerBuild(projectID, commitID string, version *BuildVersionInput) (*Build, error) {
+	payload := map[string]string{
 		"commit_id": commitID,
-	})
+	}
+	if version != nil {
+		if versionLabel := strings.TrimSpace(version.VersionLabel); versionLabel != "" {
+			payload["version_label"] = versionLabel
+		}
+		if sourceRef := strings.TrimSpace(version.SourceRef); sourceRef != "" {
+			payload["source_ref"] = sourceRef
+		}
+	}
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
@@ -257,7 +306,6 @@ func (c *Client) TriggerBuild(projectID, commitID string) (*Build, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&build); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-
 	return &build, nil
 }
 
@@ -352,9 +400,19 @@ func (c *Client) PublishBuild(projectID, buildID string) (string, error) {
 
 	var result struct {
 		PublicPath string `json:"public_path"`
+		Publish    *struct {
+			URL string `json:"url"`
+		} `json:"publish,omitempty"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-		return result.PublicPath, nil
+		publicPath := strings.TrimSpace(result.PublicPath)
+		if publicPath != "" {
+			return publicPath, nil
+		}
+		if result.Publish != nil {
+			return strings.TrimSpace(result.Publish.URL), nil
+		}
+		return "", nil
 	}
 	return "", nil
 }
