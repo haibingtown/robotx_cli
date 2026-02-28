@@ -272,6 +272,15 @@ class RobotXClient:
             args.extend(['--limit', str(limit)])
         return self._run_command(args)
 
+    def projects(self, limit: int = 50) -> Dict[str, Any]:
+        """
+        List projects for the current account
+        """
+        args = ['projects']
+        if limit != 50:
+            args.extend(['--limit', str(limit)])
+        return self._run_command(args)
+
     def wait_for_build(
         self,
         build_id: str,

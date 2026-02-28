@@ -30,6 +30,7 @@ Set credentials by config file (`~/.robotx.yaml`) or env vars:
 For agents and workflows, always use structured output:
 
 - `robotx deploy . --name my-app --output json`
+- `robotx projects --limit 50 --output json`
 - `robotx versions --project-id proj_123 --output json`
 - `robotx status --project-id proj_123 --output json`
 - `robotx logs --build-id build_456 --output json`
@@ -54,6 +55,12 @@ robotx versions --project-id proj_123 [--limit 20]
 ```
 
 `versions` alias: `robotx builds --project-id proj_123`.
+
+### Projects
+
+```bash
+robotx projects [--limit 50]
+```
 
 ### Status
 

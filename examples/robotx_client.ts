@@ -315,6 +315,19 @@ export class RobotXClient {
   }
 
   /**
+   * List projects for the current account
+   *
+   * @param limit - Max number of projects
+   * @returns Project list
+   */
+  async projects(limit: number = 50): Promise<any> {
+    return this.runCommand([
+      'projects',
+      '--limit', String(limit),
+    ]);
+  }
+
+  /**
    * Wait for a build to complete
    *
    * @param buildId - Build ID to wait for

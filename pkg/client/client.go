@@ -157,6 +157,85 @@ func (c *Client) GetProject(projectID string) (*Project, error) {
 	return &project, nil
 }
 
+// ListProjects lists projects for current account.
+func (c *Client) ListProjects(limit int) ([]*Project, error) {
+	path := "/api/projects"
+	if limit > 0 {
+		path = fmt.Sprintf("%s?limit=%d", path, limit)
+	}
+	resp, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+
+	rawBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	projects, err := decodeProjectListResponse(rawBody)
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
+func decodeProjectListResponse(raw []byte) ([]*Project, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return []*Project{}, nil
+	}
+
+	projects, parsed, err := extractProjectsFromJSON(trimmed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	if !parsed {
+		return nil, fmt.Errorf("failed to decode response: unsupported project list payload")
+	}
+	return projects, nil
+}
+
+func extractProjectsFromJSON(raw []byte) ([]*Project, bool, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return []*Project{}, true, nil
+	}
+
+	var projects []*Project
+	if err := json.Unmarshal(trimmed, &projects); err == nil {
+		if projects == nil {
+			return []*Project{}, true, nil
+		}
+		return projects, true, nil
+	}
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &payload); err != nil {
+		return nil, false, nil
+	}
+
+	for _, key := range []string{"projects", "items", "list", "results", "data"} {
+		child, ok := payload[key]
+		if !ok {
+			continue
+		}
+		nested, parsed, err := extractProjectsFromJSON(child)
+		if err != nil {
+			return nil, true, err
+		}
+		if parsed {
+			return nested, true, nil
+		}
+	}
+
+	return nil, false, nil
+}
+
 // UploadSource uploads source code and creates a commit/build.
 func (c *Client) UploadSource(projectID, sourcePath string, version *BuildVersionInput) (*SourceCommit, *Build, error) {
 	// Create multipart form

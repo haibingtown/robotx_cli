@@ -26,6 +26,7 @@ export ROBOTX_API_KEY=your-api-key
 
 ```bash
 robotx deploy . --name my-app --output json
+robotx projects --limit 50 --output json
 robotx versions --project-id proj_123 --output json
 robotx status --project-id proj_123 --output json
 robotx logs --build-id build_456 --output json

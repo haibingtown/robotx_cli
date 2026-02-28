@@ -1,6 +1,6 @@
 # RobotX CLI
 
-RobotX CLI 用于将应用部署到 RobotX 平台，支持 `login` / `deploy` / `versions` / `status` / `logs` / `publish`。
+RobotX CLI 用于将应用部署到 RobotX 平台，支持 `login` / `deploy` / `projects` / `versions` / `status` / `logs` / `publish`。
 
 ## 当前状态
 
@@ -153,6 +153,14 @@ robotx login --base-url https://api.robotx.xin
 - `--device-poll-path`：设备登录轮询接口（默认 `/api/auth/device/poll`）
 - `--timeout`：登录超时秒数（默认 `180`）
 - `--no-browser`：不自动打开浏览器，仅打印登录链接
+
+### projects
+
+查询当前账号下的项目列表：
+
+```bash
+robotx projects [--limit 50]
+```
 
 ### versions
 
