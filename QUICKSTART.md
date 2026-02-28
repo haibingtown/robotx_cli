@@ -24,6 +24,14 @@ go install github.com/haibingtown/robotx_cli/cmd/robotx@latest
 
 ## 2) 配置
 
+先登录自动写入（推荐）：
+
+```bash
+robotx login --base-url https://your-robotx-server.com
+```
+
+或手动配置：
+
 ```bash
 export ROBOTX_BASE_URL=https://your-robotx-server.com
 export ROBOTX_API_KEY=your-api-key

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -55,16 +56,14 @@ func initConfig() {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		home, err := os.UserHomeDir()
+		defaultConfigPath, err := resolveDefaultConfigPath()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
 			os.Exit(1)
 		}
-
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".robotx")
+		viper.SetConfigFile(defaultConfigPath)
 	}
+	viper.SetConfigType("yaml")
 
 	viper.SetEnvPrefix("ROBOTX")
 	viper.AutomaticEnv()
@@ -72,6 +71,18 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil && !isJSONOutput() {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func resolveDefaultConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(home, ".robotx.yaml")
+	if stat, err := os.Stat(path); err == nil && stat.IsDir() {
+		return "", fmt.Errorf("config path is a directory: %s", path)
+	}
+	return path, nil
 }
 
 func normalizeOutputConfig() error {
