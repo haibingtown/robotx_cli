@@ -385,14 +385,14 @@ for project in projects:
 ## 📚 文档索引
 
 ### 用户文档
-- [README.md](README.md) - 完整的使用文档
+- [README.md](../README.md) - 完整的使用文档
 - [QUICKSTART.md](QUICKSTART.md) - 5 分钟快速入门
 - [EXAMPLES.md](EXAMPLES.md) - 使用示例集合
 
 ### 开发者文档
-- [AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md) - AI Agent 集成指南
-- [examples/README.md](examples/README.md) - 客户端库文档
-- [SKILL.md](SKILL.md) - Skill 定义
+- [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) - AI Agent 集成指南
+- [examples/README.md](../examples/README.md) - 客户端库文档
+- [SKILL.md](../SKILL.md) - Skill 定义
 
 ### 项目文档
 - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - 项目总结
@@ -405,8 +405,8 @@ for project in projects:
 ### 对于 AI Agent 开发者
 
 1. **阅读快速入门**: [QUICKSTART.md](QUICKSTART.md)
-2. **查看集成指南**: [AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md)
-3. **选择客户端库**: [examples/README.md](examples/README.md)
+2. **查看集成指南**: [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md)
+3. **选择客户端库**: [examples/README.md](../examples/README.md)
 4. **运行演示脚本**: `./demo.sh`
 
 ### 对于最终用户

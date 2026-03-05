@@ -550,6 +550,6 @@ with open('deployment.log', 'a') as f:
 ## Support
 
 For more information:
-- CLI Documentation: [README.md](README.md)
-- Skill Documentation: [SKILL.md](SKILL.md)
+- CLI Documentation: [README.md](../README.md)
+- Skill Documentation: [SKILL.md](../SKILL.md)
 - API Reference: https://api.api.robotx.xin/docs

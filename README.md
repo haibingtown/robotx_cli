@@ -8,6 +8,14 @@ RobotX CLI 用于将应用部署到 RobotX 平台，支持 `login` / `deploy` / 
 - JSON 机器输出: 可用（`--output json` 或 `--json`）
 - MCP 模式（`robotx mcp`）: 未实现（占位）
 
+## 文档导航
+
+- 文档索引: [docs/README.md](docs/README.md)
+- 快速开始: [docs/QUICKSTART.md](docs/QUICKSTART.md)
+- 示例集合: [docs/EXAMPLES.md](docs/EXAMPLES.md)
+- Agent 集成: [docs/AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md)
+- 项目文档归档: `docs/`
+
 ## 安装
 
 ### 方式 1: 下载安装脚本（推荐，无需 Go）

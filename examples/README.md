@@ -502,9 +502,9 @@ const client = new RobotXClient();  // 自动从环境变量读取
 ## 更多资源
 
 - [RobotX CLI 文档](../README.md)
-- [快速入门](../QUICKSTART.md)
+- [快速入门](../docs/QUICKSTART.md)
 - [AI Agent 集成指南](../docs/AI_AGENT_INTEGRATION.md)
-- [项目总结](../PROJECT_SUMMARY.md)
+- [项目总结](../docs/PROJECT_SUMMARY.md)
 
 ## 贡献
 

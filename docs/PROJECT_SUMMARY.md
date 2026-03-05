@@ -289,9 +289,9 @@ print(f"Deployed to: {result['url']}")
 
 欢迎贡献！请查看以下资源：
 
-- [开发指南](docs/DEVELOPMENT.md)
-- [贡献指南](docs/CONTRIBUTING.md)
-- [代码规范](docs/CODE_STYLE.md)
+- [开发指南](DEVELOPMENT.md)
+- [贡献指南](CONTRIBUTING.md)
+- [代码规范](CODE_STYLE.md)
 
 ## 许可证
 

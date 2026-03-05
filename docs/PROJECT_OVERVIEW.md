@@ -23,9 +23,9 @@
 - ✅ TypeScript 客户端 (`examples/robotx_client.ts`)
 
 ### 3. 文档
-- ✅ 完整使用文档 (README.md)
+- ✅ 完整使用文档 (../README.md)
 - ✅ 快速入门 (QUICKSTART.md)
-- ✅ AI Agent 集成指南 (docs/AI_AGENT_INTEGRATION.md)
+- ✅ AI Agent 集成指南 (AI_AGENT_INTEGRATION.md)
 - ✅ 示例代码 (examples/)
 
 ## 🚀 快速开始
@@ -85,11 +85,11 @@ console.log(`Deployed to: ${result.url}`);
 
 | 文档 | 用途 |
 |------|------|
-| [README.md](README.md) | 完整使用文档 |
+| [README.md](../README.md) | 完整使用文档 |
 | [QUICKSTART.md](QUICKSTART.md) | 5 分钟快速入门 |
-| [AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md) | AI Agent 集成指南 |
+| [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) | AI Agent 集成指南 |
 | [EXAMPLES.md](EXAMPLES.md) | 使用示例 |
-| [examples/README.md](examples/README.md) | 客户端库文档 |
+| [examples/README.md](../examples/README.md) | 客户端库文档 |
 | [COMPLETION_REPORT.md](COMPLETION_REPORT.md) | 完成报告 |
 
 ## 🎯 核心特性
@@ -140,7 +140,7 @@ Runtime 运行
 
 ## 📞 获取帮助
 
-- 查看文档: [README.md](README.md)
+- 查看文档: [README.md](../README.md)
 - 运行演示: `./demo.sh`
 - 查看示例: [examples/](examples/)
 

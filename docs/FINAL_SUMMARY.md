@@ -238,13 +238,13 @@ haibingtown/robotx_cli/
 - [demo.sh](demo.sh) - 演示脚本
 
 ### 📖 使用文档
-- [README.md](README.md) - 完整使用文档
+- [README.md](../README.md) - 完整使用文档
 - [EXAMPLES.md](EXAMPLES.md) - 使用示例集合
-- [SKILL.md](SKILL.md) - Skill 定义
+- [SKILL.md](../SKILL.md) - Skill 定义
 
 ### 🔧 开发文档
-- [AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md) - AI Agent 集成指南
-- [examples/README.md](examples/README.md) - 客户端库文档
+- [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) - AI Agent 集成指南
+- [examples/README.md](../examples/README.md) - 客户端库文档
 
 ### 📊 项目文档
 - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - 项目总览
@@ -260,12 +260,12 @@ haibingtown/robotx_cli/
 ### 对于新用户
 1. [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - 了解项目
 2. [QUICKSTART.md](QUICKSTART.md) - 快速上手
-3. [README.md](README.md) - 深入学习
+3. [README.md](../README.md) - 深入学习
 4. [EXAMPLES.md](EXAMPLES.md) - 查看示例
 
 ### 对于 AI Agent 开发者
-1. [AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md) - 集成指南
-2. [examples/README.md](examples/README.md) - 客户端库文档
+1. [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) - 集成指南
+2. [examples/README.md](../examples/README.md) - 客户端库文档
 3. [EXAMPLES.md](EXAMPLES.md) - 使用示例
 
 ### 对于项目管理者
@@ -369,7 +369,7 @@ haibingtown/robotx_cli/
 ## 📞 获取帮助
 
 ### 文档
-- 查看 [README.md](README.md) 了解完整功能
+- 查看 [README.md](../README.md) 了解完整功能
 - 查看 [QUICKSTART.md](QUICKSTART.md) 快速上手
 - 查看 [EXAMPLES.md](EXAMPLES.md) 学习示例
 
@@ -379,7 +379,7 @@ haibingtown/robotx_cli/
 
 ### 问题
 - 查看文档中的"故障排查"部分
-- 查看 [AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md) 的常见问题
+- 查看 [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) 的常见问题
 
 ---
 
