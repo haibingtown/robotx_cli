@@ -7,6 +7,7 @@ Technical/project documents are temporarily archived in this directory to keep t
 - [Quickstart](./QUICKSTART.md)
 - [Examples](./EXAMPLES.md)
 - [AI Agent Integration](./AI_AGENT_INTEGRATION.md)
+- [Skills](../skills/README.md)
 
 ## Project Docs
 

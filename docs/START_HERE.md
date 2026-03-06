@@ -5,7 +5,7 @@
 1. [README.md](../README.md): 当前可用功能、命令契约、Action/Release 说明
 2. [QUICKSTART.md](QUICKSTART.md): 最短可执行流程
 3. [docs/AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md): Agent/CI 集成方式
-4. [SKILL.md](../SKILL.md): Skill 使用说明
+4. [skills/README.md](../skills/README.md): Skills 总览与使用入口
 
 ## 最短路径
 

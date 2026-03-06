@@ -62,7 +62,7 @@
 | `AI_AGENT_INTEGRATION.md` | AI Agent 集成指南 | ✅ 完成 |
 | `PROJECT_SUMMARY.md` | 项目总结 | ✅ 完成 |
 | `EXAMPLES.md` | 使用示例 | ✅ 完成 |
-| `SKILL.md` | Skill 定义 | ✅ 完成 |
+| `skills/README.md` + `skills/*/SKILL.md` | Skills 目录与定义 | ✅ 完成 |
 | `examples/README.md` | 客户端库文档 | ✅ 完成 |
 
 ### 4. 示例和工具 ✅
@@ -110,7 +110,7 @@ haibingtown/robotx_cli/
 ├── QUICKSTART.md                 # 快速入门
 ├── PROJECT_SUMMARY.md            # 项目总结
 ├── EXAMPLES.md                   # 使用示例
-├── SKILL.md                      # Skill 定义
+├── skills/                       # Skills 目录
 └── .robotx.yaml.example          # 配置示例
 ```
 
@@ -392,7 +392,7 @@ for project in projects:
 ### 开发者文档
 - [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) - AI Agent 集成指南
 - [examples/README.md](../examples/README.md) - 客户端库文档
-- [SKILL.md](../SKILL.md) - Skill 定义
+- [skills/README.md](../skills/README.md) - Skills 总览
 
 ### 项目文档
 - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - 项目总结

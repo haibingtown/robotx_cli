@@ -2,6 +2,15 @@
 
 本指南描述如何把 RobotX CLI 集成到 Agent / CI 系统中。
 
+## 面向公开页面的推荐心智
+
+如果你的 Agent / Claw 需要对外持续发布结果，优先把 RobotX 视为“发布层 / 结果站点层”，而不是单纯部署工具：
+
+- Runtime 负责生产结果
+- RobotX 负责发布身份、历史、成果与复制入口
+
+面向这类用法的具体工作流见 `skills/agent-pages/SKILL.md`，底层部署细节见 `skills/robotx/SKILL.md`。
+
 ## 推荐集成路径
 
 1. 使用 release 二进制安装（不要依赖本地 Go）

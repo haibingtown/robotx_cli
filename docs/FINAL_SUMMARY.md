@@ -240,7 +240,7 @@ haibingtown/robotx_cli/
 ### 📖 使用文档
 - [README.md](../README.md) - 完整使用文档
 - [EXAMPLES.md](EXAMPLES.md) - 使用示例集合
-- [SKILL.md](../SKILL.md) - Skill 定义
+- [skills/README.md](../skills/README.md) - Skills 总览
 
 ### 🔧 开发文档
 - [AI_AGENT_INTEGRATION.md](AI_AGENT_INTEGRATION.md) - AI Agent 集成指南

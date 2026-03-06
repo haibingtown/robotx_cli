@@ -34,7 +34,9 @@ examples/
 README.md                        # 完整使用文档
 QUICKSTART.md                    # 5 分钟快速入门
 EXAMPLES.md                      # 使用示例集合
-SKILL.md                         # Skill 定义
+skills/README.md                # Skills 总览
+skills/robotx/SKILL.md           # RobotX 部署 skill
+skills/agent-pages/SKILL.md      # Agent Pages skill
 PROJECT_SUMMARY.md               # 项目总结
 COMPLETION_REPORT.md             # 完成报告
 PROJECT_OVERVIEW.md              # 项目总览
@@ -82,7 +84,7 @@ demo.sh                          # 演示脚本
 |------|--------|------|
 | CLI 核心 | 9 | main.go, cmd/*.go, pkg/client/*.go |
 | 客户端库 | 2 | examples/*.py, examples/*.ts |
-| 用户文档 | 5 | README.md, QUICKSTART.md, EXAMPLES.md, SKILL.md, examples/README.md |
+| 用户文档 | 7 | README.md, QUICKSTART.md, EXAMPLES.md, skills/README.md, skills/robotx/SKILL.md, skills/agent-pages/SKILL.md, examples/README.md |
 | 项目文档 | 4 | PROJECT_SUMMARY.md, COMPLETION_REPORT.md, PROJECT_OVERVIEW.md, FILES_CREATED.md |
 | 开发文档 | 1 | docs/AI_AGENT_INTEGRATION.md |
 | 构建工具 | 3 | Makefile, go.mod, go.sum |
@@ -168,10 +170,10 @@ demo.sh                          # 演示脚本
 - 完整代码示例
 - 最佳实践
 
-#### `SKILL.md`
-- Skill 定义
-- 参数说明
-- 使用示例
+#### `skills/README.md`
+- Skills 总览
+- 不同能力入口
+- `robotx` 与 `agent-pages` 的分工
 
 #### `docs/AI_AGENT_INTEGRATION.md`
 - AI Agent 集成指南

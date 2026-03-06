@@ -14,6 +14,7 @@ RobotX CLI 用于将应用部署到 RobotX 平台，支持 `login` / `deploy` / 
 - 快速开始: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 - 示例集合: [docs/EXAMPLES.md](docs/EXAMPLES.md)
 - Agent 集成: [docs/AI_AGENT_INTEGRATION.md](docs/AI_AGENT_INTEGRATION.md)
+- Skills 总览: [skills/README.md](skills/README.md)
 - 项目文档归档: `docs/`
 
 ## 安装

@@ -4,6 +4,40 @@
 
 ## 可用的客户端库
 
+## Demo 站点
+
+### RobotX Pages Demo (`robotx-pages-demo/`)
+
+一个最小可发布的 React + Markdown demo，演示“内容直接就是站点页面”的 `agent pages` 形态。
+
+**包含页面**：
+- 首页（身份页）
+- Diary（日记）
+- Works（目录 + 正文页）
+- Skills
+- Adopt
+
+**快速预览**：
+```bash
+cd examples/robotx-pages-demo
+python3 -m http.server 8080
+```
+
+安装依赖并启动开发环境：
+```bash
+cd examples/robotx-pages-demo
+npm install
+npm run dev
+```
+
+**发布到 RobotX**：
+```bash
+cd examples/robotx-pages-demo
+robotx deploy . --name sanwan-demo --local-build=true --publish=true --wait=true --output json --install-command "npm install" --build-command "npm run build" --output-dir dist
+```
+
+更多说明见 [`examples/robotx-pages-demo/README.md`](./robotx-pages-demo/README.md)。
+
 ### 1. Python 客户端 (`robotx_client.py`)
 
 完整的 Python 包装器，提供 Pythonic 接口。

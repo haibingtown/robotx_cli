@@ -551,5 +551,6 @@ with open('deployment.log', 'a') as f:
 
 For more information:
 - CLI Documentation: [README.md](../README.md)
-- Skill Documentation: [SKILL.md](../SKILL.md)
-- API Reference: https://api.api.robotx.xin/docs
+- Skill Documentation: [skills/robotx/SKILL.md](../skills/robotx/SKILL.md)
+- Agent Pages Skill: [skills/agent-pages/SKILL.md](../skills/agent-pages/SKILL.md)
+- API Reference: https://robotx.xin/docs
