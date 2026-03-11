@@ -25,7 +25,7 @@ Set credentials by config file (`~/.robotx.yaml`) or env vars:
 - `ROBOTX_BASE_URL`
 - `ROBOTX_API_KEY`
 
-## Auth pre-check and fallback
+## Auth pre-check and browser login
 
 Before running any API command (`deploy`, `projects`, `versions`, `status`, `logs`, `publish`),
 verify local auth first.
@@ -38,8 +38,11 @@ robotx projects --limit 1 --output json
 
 If you see auth-related errors (`missing_base_url`, `missing_api_key`, `401`, `403`), follow one of these paths:
 
-1. Preferred (interactive): run device login, then retry the original command.
+1. Preferred (interactive, browser-based): run `robotx login` and retry the original command.
    - `robotx login --base-url https://robotx.xin`
+   - The CLI prints a verification URL + user code, then auto-opens your browser for authorization.
+   - Complete the login in the browser; the CLI polls and saves credentials to `~/.robotx.yaml`.
+   - Headless/remote mode: add `--no-browser` and open the printed URL manually.
    - For RobotX hosted login authorization, use `robotx.xin` (not `api.robotx.xin`).
 2. Manual API key setup: ask the user to create/get an API key from RobotX console and configure locally.
    - `export ROBOTX_BASE_URL=https://your-robotx-server.com`
